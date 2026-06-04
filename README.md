@@ -66,21 +66,34 @@ phrase to play just that segment + see its coaching notes), and the overall scor
   optional (without them: single-head technique, no falsetto / no learned quality).
 - API endpoints: `POST /analyse` (full JSON), `GET /health`.
 
----
+## 4. Inputs / outputs
 
-## 4. Sample inputs / outputs
+**Input:** any singing clip (WAV/MP3/FLAC), 16 kHz mono internally (auto-resampled).
 
-```
-samples/
-  ├── <clip>.wav                 # example recordings
-  └── <clip>.analysis.json       # expected /analyse output for that clip
-```
+**Output & persistence — the two paths differ:**
 
-Quick CLI test without the UI:
+- **UI (`POST /sessions/{song}`)** — used by the browser. Every take is **auto-saved**:
+  the full report JSON is appended to `{song}.json` and the user (+ optional
+  reference) audio is written as WAV, under `VOCALCOACH_SESSIONS_DIR`
+  (default `./vocalcoach_sessions/`). Past takes — report *and* audio — can be
+  replayed later.
+- **`POST /analyse`** — stateless. Returns the report as JSON in the HTTP response
+  and writes **nothing** to disk; redirect it yourself if you want to keep it.
+
+Quick CLI test without the UI (note the field is `audio`, not `file`):
 
 ```bash
-curl -s -F "file=@samples/<clip>.wav" http://localhost:8000/analyse | python -m json.tool
+curl -s -F "audio=@your_clip.wav" http://localhost:8000/analyse | python -m json.tool
+# save it:
+curl -s -F "audio=@your_clip.wav" http://localhost:8000/analyse > your_clip.analysis.json
 ```
+
+Optional: add `-F "reference=@target.wav"` for DTW + a full report on the reference,
+or `-F "phrasing=ballad"` (`default` | `ballad` | `uptempo`) to set phrase grouping.
+
+**Worked example** (committed): [`samples/house.wav`](samples/house.wav) (16 s) and
+its full `/analyse` output [`samples/house.analysis.json`](samples/house.analysis.json)
+— overall 61/100, 3 phrases, 15 notes, dominant technique = vibrato, quality 70/100.
 
 ---
 
