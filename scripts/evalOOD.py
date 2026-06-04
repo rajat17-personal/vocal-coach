@@ -42,8 +42,8 @@ import numpy as np
 import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from vocalcoach.model import build_model, viterbi_decode
-from vocalcoach.evaluate import pitch_metrics, print_pitch_table
+from src.model import build_model, viterbi_decode
+from src.evaluate import pitch_metrics, print_pitch_table
 
 # ── Audio / feature constants — must match api.py / train.py ────────
 SR         = 16000

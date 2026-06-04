@@ -22,7 +22,7 @@ Features implemented (from the full taxonomy):
 
 Usage
 -----
-    from vocalcoach.features import extract_all, phrase_aggregate
+    from src.features import extract_all, phrase_aggregate
 
     feats = extract_all(y, sr=16000, f0_hz=f0, vad=vad)
     phrases = phrase_aggregate(f0_hz, vad, technique_probs, sr=16000)

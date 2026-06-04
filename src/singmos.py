@@ -23,7 +23,7 @@ the rest of the pipeline continues normally.
 
 Usage
 -----
-    from vocalcoach.singmos import score_mos, mos_grade
+    from src.singmos import score_mos, mos_grade
 
     mos = score_mos(y, sr=16000)        # float in [1,5] or None
     print(mos_grade(mos))               # "excellent" / "good" / ...

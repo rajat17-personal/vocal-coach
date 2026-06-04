@@ -10,7 +10,7 @@ natural-language feedback via the Claude API. Two output tiers:
 
 Usage
 -----
-    from vocalcoach.coach import build_report, generate_critique
+    from src.coach import build_report, generate_critique
 
     report = build_report(phrases, feats_summary, technique_clip, dtw_result)
     critique = generate_critique(report, mode="expert")   # or "beginner"

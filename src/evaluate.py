@@ -51,7 +51,7 @@ from sklearn.metrics import average_precision_score, precision_recall_fscore_sup
 from tqdm import tqdm
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from vocalcoach.model import (
+from src.model import (
     build_model, viterbi_decode,
     PITCH_BINS, TECHNIQUE_NAMES,
 )

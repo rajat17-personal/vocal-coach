@@ -31,8 +31,8 @@ import numpy as np
 from sklearn.metrics import average_precision_score, precision_recall_fscore_support
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from vocalcoach.model import TECHNIQUE_NAMES
-from vocalcoach.technique_fusion import TechniqueFusion
+from src.model import TECHNIQUE_NAMES
+from src.technique_fusion import TechniqueFusion
 
 # Which test set(s) supervise each class.
 _CLASS_SOURCES = {

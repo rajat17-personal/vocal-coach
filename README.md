@@ -54,7 +54,7 @@ export VOCALCOACH_NOTE_CHECKPOINT=ckpts/note.pth                      # +1 pass 
 export VOCALCOACH_PHRASE_GAP_MS=500    # silence gap (ms) that starts a new phrase
 export VOCALCOACH_PHRASE_MIN_MS=300    # drop phrases shorter than this (ms)
 
-uvicorn vocalcoach.api:app --host 0.0.0.0 --port 8000
+uvicorn src.api:app --host 0.0.0.0 --port 8000
 ```
 
 Open **http://localhost:8000/ui** and drop an audio file (a few are in

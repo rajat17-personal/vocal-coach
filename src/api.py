@@ -21,7 +21,7 @@ Sessions are stored as JSON files under VOCALCOACH_SESSIONS_DIR
 
 Usage
 -----
-    uvicorn vocalcoach.api:app --host 0.0.0.0 --port 8000 --reload
+    uvicorn src.api:app --host 0.0.0.0 --port 8000 --reload
 
 Dependencies
 ------------
@@ -63,12 +63,12 @@ except ImportError:
 
 import torch
 
-from model import bin_to_f0
-from features import (
+from src.model import bin_to_f0
+from src.features import (
     extract_all, summarise, phrase_aggregate, compute_dtw_distance,
     SR, HOP_LENGTH
 )
-from coach import build_report, generate_critique, score_report, compare_to_baselines
+from src.coach import build_report, generate_critique, score_report, compare_to_baselines
 
 # ── App init ────────────────────────────────────────────────────────────────
 
@@ -236,7 +236,7 @@ def _build_aux_model(ckpt):
     n_heads, head flags, etc.) — partial reconstruction from the state_dict alone
     drops n_attn_layers, leaving the attention layers RANDOM and the model broken.
     Falls back to inferring from state_dict + args if model_kwargs is absent."""
-    from vocalcoach.model import VocalCoachTCN
+    from src.model import VocalCoachTCN
     sd = ckpt["state_dict"]
     kw = dict(ckpt.get("model_kwargs", {}) or {})
     kw.pop("causal", None)  # passed explicitly below
@@ -279,7 +279,7 @@ def _load_model():
 
     _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    from vocalcoach.model import VocalCoachTCN, VocalCoachConformer
+    from src.model import VocalCoachTCN, VocalCoachConformer
     ckpt = torch.load(checkpoint_path, map_location=_device)
     saved_args = ckpt.get("args", {})
 
@@ -906,4 +906,4 @@ if __name__ == "__main__":
     if cli.checkpoint:
         os.environ["VOCALCOACH_CHECKPOINT"] = cli.checkpoint
 
-    uvicorn.run("vocalcoach.api:app", host=cli.host, port=cli.port, reload=cli.reload)
+    uvicorn.run("src.api:app", host=cli.host, port=cli.port, reload=cli.reload)

@@ -42,7 +42,7 @@ import numpy as np
 import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from vocalcoach.model import build_model
+from src.model import build_model
 
 HOP_MS = 10.0   # 10 ms hop (160 samples @ 16 kHz)
 
