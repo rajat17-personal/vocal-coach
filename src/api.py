@@ -63,15 +63,12 @@ except ImportError:
 
 import torch
 
-from vocalcoach.model import bin_to_f0
-from vocalcoach.features import (
+from model import bin_to_f0
+from features import (
     extract_all, summarise, phrase_aggregate, compute_dtw_distance,
     SR, HOP_LENGTH
 )
-from vocalcoach.coach import build_report, generate_critique, score_report, compare_to_baselines
-# SingMOS (external pretrained MOS model) removed — quality now comes from OUR
-# quality head (see _score_quality / VOCALCOACH_QUALITY_CHECKPOINT).
-# from vocalcoach.singmos import score_mos, mos_grade
+from coach import build_report, generate_critique, score_report, compare_to_baselines
 
 # ── App init ────────────────────────────────────────────────────────────────
 
