@@ -1,0 +1,470 @@
+{
+  "amateur": {
+    "f0_mean_hz": {
+      "mean": 267.5073,
+      "median": 270.499,
+      "p25": 232.6252,
+      "p75": 303.772,
+      "std": 45.8707,
+      "n": 14257
+    },
+    "h1_h2_mean_db": {
+      "mean": -72.7573,
+      "median": -64.2797,
+      "p25": -97.8535,
+      "p75": -39.0091,
+      "std": 46.9385,
+      "n": 14521
+    },
+    "hnr_mean_db": {
+      "mean": -46.5213,
+      "median": -51.6871,
+      "p25": -60.6549,
+      "p75": -36.6093,
+      "std": 18.5598,
+      "n": 14521
+    },
+    "jitter_mean_pct": {
+      "mean": 0.7032,
+      "median": 0.4892,
+      "p25": 0.3448,
+      "p75": 0.7329,
+      "std": 0.7456,
+      "n": 14518
+    },
+    "mos": {
+      "mean": 4.6825,
+      "median": 4.8306,
+      "p25": 4.6456,
+      "p75": 4.8997,
+      "std": 0.4437,
+      "n": 14525
+    },
+    "n_phrases": {
+      "mean": 2.8299,
+      "median": 3.0,
+      "p25": 2.0,
+      "p75": 4.0,
+      "std": 1.7561,
+      "n": 14525
+    },
+    "n_vibrato_phrases": {
+      "mean": 0.0375,
+      "median": 0.0,
+      "p25": 0.0,
+      "p75": 0.0,
+      "std": 0.1973,
+      "n": 14525
+    },
+    "onsets_per_phrase": {
+      "mean": 3.7285,
+      "median": 3.0,
+      "p25": 2.3333,
+      "p75": 4.5,
+      "std": 2.2406,
+      "n": 14525
+    },
+    "pitch_stability_cents": {
+      "mean": 154.1662,
+      "median": 136.9568,
+      "p25": 78.5787,
+      "p75": 211.3394,
+      "std": 99.0366,
+      "n": 14257
+    },
+    "rms_arc_mean_db": {
+      "mean": 2.5975,
+      "median": 2.1908,
+      "p25": 1.3557,
+      "p75": 3.3551,
+      "std": 1.7891,
+      "n": 14257
+    },
+    "rms_mean_db": {
+      "mean": -30.7769,
+      "median": -30.5446,
+      "p25": -33.6688,
+      "p75": -27.7331,
+      "std": 4.9564,
+      "n": 14525
+    },
+    "shimmer_mean_pct": {
+      "mean": 10.6649,
+      "median": 9.6968,
+      "p25": 7.4297,
+      "p75": 12.4591,
+      "std": 5.19,
+      "n": 14518
+    },
+    "technique_belt": {
+      "mean": 0.5815,
+      "median": 0.5926,
+      "p25": 0.5461,
+      "p75": 0.6297,
+      "std": 0.0702,
+      "n": 14405
+    },
+    "technique_breathy": {
+      "mean": 0.5078,
+      "median": 0.4952,
+      "p25": 0.4673,
+      "p75": 0.5396,
+      "std": 0.0556,
+      "n": 14405
+    },
+    "technique_falsetto": {
+      "mean": 0.1835,
+      "median": 0.1791,
+      "p25": 0.1428,
+      "p75": 0.2175,
+      "std": 0.0568,
+      "n": 14405
+    },
+    "technique_vibrato": {
+      "mean": 0.5608,
+      "median": 0.5589,
+      "p25": 0.5354,
+      "p75": 0.5843,
+      "std": 0.0362,
+      "n": 14405
+    },
+    "vibrato_depth_cents": {
+      "mean": 133.2965,
+      "median": 90.0322,
+      "p25": 59.1662,
+      "p75": 136.7655,
+      "std": 179.6019,
+      "n": 1196
+    },
+    "vibrato_phrase_frac": {
+      "mean": 0.0107,
+      "median": 0.0,
+      "p25": 0.0,
+      "p75": 0.0,
+      "std": 0.0458,
+      "n": 14521
+    },
+    "vibrato_rate_hz": {
+      "mean": 5.985,
+      "median": 5.8824,
+      "p25": 5.0,
+      "p75": 7.1429,
+      "std": 1.3555,
+      "n": 1196
+    }
+  },
+  "professional": {
+    "f0_mean_hz": {
+      "mean": 262.9516,
+      "median": 265.4854,
+      "p25": 228.7046,
+      "p75": 297.5491,
+      "std": 44.6405,
+      "n": 13719
+    },
+    "h1_h2_mean_db": {
+      "mean": -72.9605,
+      "median": -63.608,
+      "p25": -97.4699,
+      "p75": -39.4361,
+      "std": 46.5393,
+      "n": 13978
+    },
+    "hnr_mean_db": {
+      "mean": -46.0144,
+      "median": -51.0919,
+      "p25": -60.3901,
+      "p75": -35.7186,
+      "std": 18.8049,
+      "n": 13978
+    },
+    "jitter_mean_pct": {
+      "mean": 0.8061,
+      "median": 0.5464,
+      "p25": 0.3834,
+      "p75": 0.8343,
+      "std": 0.9578,
+      "n": 13976
+    },
+    "mos": {
+      "mean": 4.6354,
+      "median": 4.8019,
+      "p25": 4.5825,
+      "p75": 4.8904,
+      "std": 0.4842,
+      "n": 13983
+    },
+    "n_phrases": {
+      "mean": 2.9192,
+      "median": 3.0,
+      "p25": 2.0,
+      "p75": 4.0,
+      "std": 1.8044,
+      "n": 13983
+    },
+    "n_vibrato_phrases": {
+      "mean": 0.0458,
+      "median": 0.0,
+      "p25": 0.0,
+      "p75": 0.0,
+      "std": 0.2214,
+      "n": 13983
+    },
+    "onsets_per_phrase": {
+      "mean": 3.8371,
+      "median": 3.3333,
+      "p25": 2.5,
+      "p75": 4.5,
+      "std": 2.2351,
+      "n": 13983
+    },
+    "pitch_stability_cents": {
+      "mean": 160.6999,
+      "median": 145.0472,
+      "p25": 85.3005,
+      "p75": 218.6853,
+      "std": 100.3281,
+      "n": 13719
+    },
+    "rms_arc_mean_db": {
+      "mean": 2.39,
+      "median": 2.0968,
+      "p25": 1.3339,
+      "p75": 3.0553,
+      "std": 1.5186,
+      "n": 13719
+    },
+    "rms_mean_db": {
+      "mean": -30.5756,
+      "median": -30.3017,
+      "p25": -33.6804,
+      "p75": -27.2985,
+      "std": 5.2566,
+      "n": 13983
+    },
+    "shimmer_mean_pct": {
+      "mean": 10.2299,
+      "median": 9.1985,
+      "p25": 7.148,
+      "p75": 11.7551,
+      "std": 5.1137,
+      "n": 13976
+    },
+    "technique_belt": {
+      "mean": 0.573,
+      "median": 0.5846,
+      "p25": 0.5345,
+      "p75": 0.6228,
+      "std": 0.0726,
+      "n": 13874
+    },
+    "technique_breathy": {
+      "mean": 0.5096,
+      "median": 0.4966,
+      "p25": 0.4686,
+      "p75": 0.5415,
+      "std": 0.0567,
+      "n": 13874
+    },
+    "technique_falsetto": {
+      "mean": 0.1861,
+      "median": 0.1846,
+      "p25": 0.1443,
+      "p75": 0.2222,
+      "std": 0.0591,
+      "n": 13874
+    },
+    "technique_vibrato": {
+      "mean": 0.5609,
+      "median": 0.559,
+      "p25": 0.5354,
+      "p75": 0.585,
+      "std": 0.0367,
+      "n": 13874
+    },
+    "vibrato_depth_cents": {
+      "mean": 146.6994,
+      "median": 104.42,
+      "p25": 65.557,
+      "p75": 156.8704,
+      "std": 190.5548,
+      "n": 1504
+    },
+    "vibrato_phrase_frac": {
+      "mean": 0.0125,
+      "median": 0.0,
+      "p25": 0.0,
+      "p75": 0.0,
+      "std": 0.0447,
+      "n": 13978
+    },
+    "vibrato_rate_hz": {
+      "mean": 6.0605,
+      "median": 5.8824,
+      "p25": 5.1151,
+      "p75": 6.6667,
+      "std": 1.2363,
+      "n": 1504
+    }
+  },
+  "thresholds": {
+    "f0_mean_hz": {
+      "ama_median": 270.499,
+      "ama_p25": 232.6252,
+      "ama_p75": 303.772,
+      "pro_median": 265.4854,
+      "pro_p25": 228.7046,
+      "pro_p75": 297.5491
+    },
+    "h1_h2_mean_db": {
+      "ama_median": -64.2797,
+      "ama_p25": -97.8535,
+      "ama_p75": -39.0091,
+      "pro_median": -63.608,
+      "pro_p25": -97.4699,
+      "pro_p75": -39.4361
+    },
+    "hnr_mean_db": {
+      "ama_median": -51.6871,
+      "ama_p25": -60.6549,
+      "ama_p75": -36.6093,
+      "pro_median": -51.0919,
+      "pro_p25": -60.3901,
+      "pro_p75": -35.7186
+    },
+    "jitter_mean_pct": {
+      "ama_median": 0.4892,
+      "ama_p25": 0.3448,
+      "ama_p75": 0.7329,
+      "pro_median": 0.5464,
+      "pro_p25": 0.3834,
+      "pro_p75": 0.8343
+    },
+    "mos": {
+      "ama_median": 4.8306,
+      "ama_p25": 4.6456,
+      "ama_p75": 4.8997,
+      "pro_median": 4.8019,
+      "pro_p25": 4.5825,
+      "pro_p75": 4.8904
+    },
+    "n_phrases": {
+      "ama_median": 3.0,
+      "ama_p25": 2.0,
+      "ama_p75": 4.0,
+      "pro_median": 3.0,
+      "pro_p25": 2.0,
+      "pro_p75": 4.0
+    },
+    "n_vibrato_phrases": {
+      "ama_median": 0.0,
+      "ama_p25": 0.0,
+      "ama_p75": 0.0,
+      "pro_median": 0.0,
+      "pro_p25": 0.0,
+      "pro_p75": 0.0
+    },
+    "onsets_per_phrase": {
+      "ama_median": 3.0,
+      "ama_p25": 2.3333,
+      "ama_p75": 4.5,
+      "pro_median": 3.3333,
+      "pro_p25": 2.5,
+      "pro_p75": 4.5
+    },
+    "pitch_stability_cents": {
+      "ama_median": 136.9568,
+      "ama_p25": 78.5787,
+      "ama_p75": 211.3394,
+      "pro_median": 145.0472,
+      "pro_p25": 85.3005,
+      "pro_p75": 218.6853
+    },
+    "rms_arc_mean_db": {
+      "ama_median": 2.1908,
+      "ama_p25": 1.3557,
+      "ama_p75": 3.3551,
+      "pro_median": 2.0968,
+      "pro_p25": 1.3339,
+      "pro_p75": 3.0553
+    },
+    "rms_mean_db": {
+      "ama_median": -30.5446,
+      "ama_p25": -33.6688,
+      "ama_p75": -27.7331,
+      "pro_median": -30.3017,
+      "pro_p25": -33.6804,
+      "pro_p75": -27.2985
+    },
+    "shimmer_mean_pct": {
+      "ama_median": 9.6968,
+      "ama_p25": 7.4297,
+      "ama_p75": 12.4591,
+      "pro_median": 9.1985,
+      "pro_p25": 7.148,
+      "pro_p75": 11.7551
+    },
+    "technique_belt": {
+      "ama_median": 0.5926,
+      "ama_p25": 0.5461,
+      "ama_p75": 0.6297,
+      "pro_median": 0.5846,
+      "pro_p25": 0.5345,
+      "pro_p75": 0.6228
+    },
+    "technique_breathy": {
+      "ama_median": 0.4952,
+      "ama_p25": 0.4673,
+      "ama_p75": 0.5396,
+      "pro_median": 0.4966,
+      "pro_p25": 0.4686,
+      "pro_p75": 0.5415
+    },
+    "technique_falsetto": {
+      "ama_median": 0.1791,
+      "ama_p25": 0.1428,
+      "ama_p75": 0.2175,
+      "pro_median": 0.1846,
+      "pro_p25": 0.1443,
+      "pro_p75": 0.2222
+    },
+    "technique_vibrato": {
+      "ama_median": 0.5589,
+      "ama_p25": 0.5354,
+      "ama_p75": 0.5843,
+      "pro_median": 0.559,
+      "pro_p25": 0.5354,
+      "pro_p75": 0.585
+    },
+    "vibrato_depth_cents": {
+      "ama_median": 90.0322,
+      "ama_p25": 59.1662,
+      "ama_p75": 136.7655,
+      "pro_median": 104.42,
+      "pro_p25": 65.557,
+      "pro_p75": 156.8704
+    },
+    "vibrato_phrase_frac": {
+      "ama_median": 0.0,
+      "ama_p25": 0.0,
+      "ama_p75": 0.0,
+      "pro_median": 0.0,
+      "pro_p25": 0.0,
+      "pro_p75": 0.0
+    },
+    "vibrato_rate_hz": {
+      "ama_median": 5.8824,
+      "ama_p25": 5.0,
+      "ama_p75": 7.1429,
+      "pro_median": 5.8824,
+      "pro_p25": 5.1151,
+      "pro_p75": 6.6667
+    }
+  },
+  "_meta": {
+    "n_amateur": 14525,
+    "n_professional": 13983,
+    "checkpoint": "vocalcoach/runs/conformer_probe_balanced/checkpoints/best_loss.pth",
+    "dataset_dir": "data/popbutfy"
+  }
+}

@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VocalCoach</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:       #0f0f14;
+    --surface:  #1a1a24;
+    --surface2: #22222f;
+    --border:   #2a2a3a;
+    --text:     #e0e0e8;
+    --dim:      #888899;
+    --accent:   #6c8cff;
+    --accent2:  #ff6c8c;
+    --green:    #4cda7c;
+    --amber:    #ffaa33;
+    --good:     #4cda7c;
+    --ok:       #ffaa33;
+    --warn:     #ff6c8c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; display: flex; flex-direction: column;
+  }
+
+  /* ── Header ── */
+  header {
+    padding: 0.9rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  }
+  header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+  header h1 span { color: var(--accent); }
+  .header-right { margin-left: auto; display: flex; gap: 0.5rem; align-items: center; }
+  .status-pill {
+    font-size: 0.78rem; padding: 0.2rem 0.7rem;
+    border-radius: 999px; border: 1px solid var(--border);
+    color: var(--dim);
+  }
+  .status-pill.ready { border-color: var(--green); color: var(--green); }
+
+  /* ── Shared button ── */
+  button {
+    padding: 0.5rem 1.1rem; border: 1px solid var(--border);
+    border-radius: 6px; background: var(--surface); color: var(--text);
+    cursor: pointer; font-size: 0.88rem; transition: border-color 0.15s, background 0.15s;
+    white-space: nowrap;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); background: var(--surface2); }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button.primary:hover:not(:disabled) { background: #7a9aff; }
+  button.danger { border-color: var(--warn); color: var(--warn); }
+  button.danger:hover:not(:disabled) { background: #2a1520; }
+
+  /* ── Panel ── */
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 0.8rem 1rem; overflow: hidden;
+  }
+  .panel h2 {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--dim); margin-bottom: 0.6rem;
+  }
+
+  /* ════════════════════════════════════════════
+     SCREEN 1 — Upload
+     ════════════════════════════════════════════ */
+  #screen-upload {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 2rem;
+  }
+  .upload-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 2.5rem 2rem;
+    width: 100%; max-width: 520px;
+    display: flex; flex-direction: column; gap: 1.25rem;
+  }
+  .upload-card h2 { font-size: 1.1rem; font-weight: 600; }
+  .upload-card p { font-size: 0.88rem; color: var(--dim); line-height: 1.5; }
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: 8px;
+    padding: 2rem 1rem; text-align: center;
+    cursor: pointer; color: var(--dim); font-size: 0.88rem;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent); background: #1a1a30; color: var(--text);
+  }
+  .drop-zone.loaded { border-color: var(--green); border-style: solid; color: var(--green); }
+  .drop-zone .drop-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+  .field-row { display: flex; flex-direction: column; gap: 0.35rem; }
+  .field-row label { font-size: 0.8rem; color: var(--dim); }
+  .field-row input[type=text] {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); padding: 0.5rem 0.75rem; font-size: 0.9rem;
+    outline: none; transition: border-color 0.15s;
+  }
+  .field-row input[type=text]:focus { border-color: var(--accent); }
+  .ref-drop {
+    border: 1px dashed var(--border); border-radius: 6px;
+    padding: 0.6rem 0.75rem; cursor: pointer; font-size: 0.82rem; color: var(--dim);
+    transition: border-color 0.2s;
+  }
+  .ref-drop:hover { border-color: var(--accent); color: var(--text); }
+  .ref-drop.loaded { border-color: var(--green); color: var(--green); }
+  .upload-error { font-size: 0.82rem; color: var(--warn); min-height: 1.2rem; }
+  .spinner {
+    display: none; width: 18px; height: 18px; border: 2px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.7s linear infinite; margin: 0 auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner.active { display: inline-block; }
+  .upload-footer {
+    display: flex; gap: 0.75rem; align-items: center; justify-content: space-between;
+  }
+  .past-songs-link { font-size: 0.8rem; color: var(--accent); cursor: pointer; text-decoration: underline; }
+
+  /* ════════════════════════════════════════════
+     SCREEN 2 — Analysis Dashboard
+     ════════════════════════════════════════════ */
+  #screen-analysis { display: none; flex: 1; flex-direction: column; }
+  .analysis-topbar {
+    padding: 0.6rem 1.5rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+    font-size: 0.88rem;
+  }
+  .analysis-topbar .song-title { font-weight: 600; font-size: 1rem; }
+  .take-badge {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 999px; padding: 0.15rem 0.6rem; font-size: 0.78rem; color: var(--dim);
+  }
+  .score-badge {
+    font-size: 1.4rem; font-weight: 700;
+    padding: 0.1rem 0.5rem;
+  }
+  .score-badge.high { color: var(--good); }
+  .score-badge.mid  { color: var(--amber); }
+  .score-badge.low  { color: var(--warn); }
+  .topbar-right { margin-left: auto; display: flex; gap: 0.5rem; }
+
+  .analysis-grid {
+    padding: 1rem 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto;
+    gap: 1rem;
+    align-items: start;
+  }
+  .span-2 { grid-column: span 2; }
+
+  /* Canvas spectrograms */
+  canvas.spectrogram {
+    width: 100%; display: block;
+    image-rendering: pixelated; image-rendering: crisp-edges;
+  }
+  /* Piano-roll uses vector drawing + text — disable pixel-art scaling */
+  #piano-roll-canvas { image-rendering: auto; }
+  #waveform-canvas   { height: 100px; }
+  #mel-canvas        { height: 160px; }
+  #pitch-post-canvas { height: 160px; }
+  #piano-roll-canvas { height: 140px; }
+
+  /* Audio player */
+  .audio-player {
+    display: none; align-items: center; gap: 0.75rem;
+    padding: 0.5rem 0.75rem; background: var(--bg); border-radius: 6px;
+    margin-bottom: 0.5rem;
+  }
+  .audio-player.visible { display: flex; }
+  .audio-player audio { flex: 1; height: 32px; filter: invert(0.9) hue-rotate(200deg); }
+  .audio-player .audio-label { font-size: 0.78rem; color: var(--dim); white-space: nowrap; }
+
+  /* Playback cursor overlay on canvases */
+  .canvas-wrap { position: relative; }
+  .playback-cursor {
+    position: absolute; top: 0; bottom: 0; width: 2px;
+    background: rgba(255,255,255,0.7); pointer-events: none;
+    display: none; z-index: 2;
+  }
+  .canvas-wrap.playing .playback-cursor { display: block; }
+
+  /* DTW reference panel */
+  .dtw-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem; margin-bottom: 0.75rem;
+  }
+  .dtw-stat { background: var(--bg); border-radius: 6px; padding: 0.5rem; text-align: center; }
+  .dtw-stat .ds-val { font-size: 1.3rem; font-weight: 700; }
+  .dtw-stat .ds-lbl { font-size: 0.7rem; color: var(--dim); margin-top: 0.2rem; }
+  .dtw-bar-wrap { margin-top: 0.5rem; }
+  .dtw-bar-label { font-size: 0.75rem; color: var(--dim); margin-bottom: 0.25rem; }
+  .dtw-bar-bg { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+  .dtw-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+
+  /* Cancel button during upload */
+  button.cancel { border-color: var(--warn); color: var(--warn); }
+  button.cancel:hover:not(:disabled) { background: #2a1520; }
+
+  /* Technique chips */
+  .tech-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-start; }
+  .tech-chip {
+    display: flex; align-items: center; gap: 0.4rem;
+    padding: 0.3rem 0.65rem; border-radius: 999px;
+    font-size: 0.8rem; font-weight: 600; border: 1.5px solid;
+  }
+  .tech-chip .chip-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .tech-chip.detected  { opacity: 1; }
+  .tech-chip.marginal  { opacity: 0.55; }
+  .tech-chip.absent    { opacity: 0.2; }
+
+  /* Meters row */
+  .meters-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 0.6rem;
+  }
+  .meter {
+    background: var(--bg); border-radius: 6px;
+    padding: 0.6rem 0.5rem; text-align: center;
+  }
+  .meter .m-value { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .meter .m-label { font-size: 0.7rem; color: var(--dim); margin-top: 0.2rem; }
+  .meter.m-green .m-value { color: var(--green); }
+  .meter.m-blue  .m-value { color: var(--accent); }
+  .meter.m-pink  .m-value { color: var(--accent2); }
+
+  /* Observations */
+  .obs-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .obs-item {
+    display: flex; gap: 0.75rem; align-items: flex-start;
+    padding: 0.55rem 0.75rem; border-radius: 6px;
+    background: var(--bg); font-size: 0.82rem; line-height: 1.45;
+  }
+  .obs-item.needs_work { border-left: 3px solid var(--warn); }
+  .obs-item.acceptable { border-left: 3px solid var(--amber); }
+  .obs-item.good       { border-left: 3px solid var(--good); }
+  .obs-icon { font-size: 1rem; flex-shrink: 0; margin-top: 0.05rem; }
+  .obs-text .obs-axis { font-weight: 600; font-size: 0.78rem; color: var(--dim); }
+  .obs-text .obs-msg  { color: var(--text); }
+  .obs-text .obs-action { color: var(--dim); font-size: 0.78rem; margin-top: 0.2rem; }
+
+  /* Progress diff banner */
+  .diff-banner {
+    margin: 0 1.5rem; padding: 0.65rem 1rem; border-radius: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    font-size: 0.82rem; display: none; gap: 0.5rem 1.5rem; flex-wrap: wrap;
+  }
+  .diff-banner.visible { display: flex; }
+  .diff-item { display: flex; gap: 0.3rem; align-items: center; }
+  .diff-item .diff-label { color: var(--dim); }
+  .diff-item .improved { color: var(--good); }
+  .diff-item .regressed { color: var(--warn); }
+  .diff-item .unchanged { color: var(--dim); }
+
+  /* Phrases accordion */
+  .phrases-toggle {
+    font-size: 0.8rem; color: var(--accent); cursor: pointer;
+    text-decoration: underline; padding: 0.3rem 0;
+  }
+  .phrases-table { display: none; width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 0.5rem; }
+  .phrases-table.visible { display: table; }
+  .phrases-table th { color: var(--dim); font-weight: 500; padding: 0.3rem 0.5rem; text-align: left; border-bottom: 1px solid var(--border); }
+  .phrases-table td { padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--border); }
+  .phrases-table tr:last-child td { border-bottom: none; }
+  .phrase-row { cursor: pointer; transition: background 0.12s; }
+  .phrase-row:hover { background: rgba(108,140,255,0.06); }
+  .phrase-expand-ico { color: var(--dim); text-align: center; width: 24px; }
+  .phrase-detail td { padding: 0 0.5rem 0.6rem; }
+  .phrase-detail-inner { padding: 0.6rem 0.8rem; background: rgba(255,255,255,0.02);
+    border-radius: 6px; border: 1px solid var(--border); }
+  .phrase-play-btn { background: rgba(108,140,255,0.15); color: #9ab0ff;
+    border: 1px solid rgba(108,140,255,0.4); border-radius: 5px; padding: 0.3rem 0.7rem;
+    font-size: 0.78rem; cursor: pointer; margin-bottom: 0.5rem; }
+  .phrase-play-btn:hover { background: rgba(108,140,255,0.28); }
+  .phrase-obs { font-size: 0.78rem; padding: 0.3rem 0.5rem; margin: 0.25rem 0;
+    border-left: 3px solid var(--dim); border-radius: 3px; }
+  .phrase-obs-good { border-left-color: var(--good); }
+  .phrase-obs-acceptable { border-left-color: var(--amber); }
+  .phrase-obs-needs_work { border-left-color: var(--warn); }
+  .phrase-obs .po-axis { font-weight: 600; color: var(--dim); margin-right: 0.4rem; }
+  .phrase-obs .po-action { color: var(--dim); margin-top: 0.2rem; font-style: italic; }
+  .note-name { color: var(--accent2); font-weight: 600; }
+
+  /* ════════════════════════════════════════════
+     SCREEN 3 — Progress
+     ════════════════════════════════════════════ */
+  #screen-progress { display: none; flex: 1; flex-direction: column; }
+  .progress-topbar {
+    padding: 0.6rem 1.5rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 1rem;
+  }
+  .progress-topbar h2 { font-size: 1rem; font-weight: 600; }
+  .progress-body { padding: 1rem 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+  .progress-charts {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+  }
+  .chart-wrap { position: relative; height: 180px; }
+  .takes-list { display: flex; flex-direction: column; gap: 0.4rem; }
+  .take-row {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.5rem 0.75rem; background: var(--bg); border-radius: 6px;
+    font-size: 0.82rem;
+  }
+  .take-row .take-num { width: 50px; color: var(--dim); }
+  .take-row .take-score { font-weight: 700; width: 45px; }
+  .take-row .take-meta { color: var(--dim); flex: 1; }
+  .take-row .take-del { margin-left: auto; }
+
+  /* ── Responsive ── */
+  @media (max-width: 680px) {
+    .analysis-grid { grid-template-columns: 1fr; }
+    .span-2 { grid-column: span 1; }
+    .progress-charts { grid-template-columns: 1fr; }
+    header { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Vocal<span>Coach</span></h1>
+  <div class="header-right">
+    <span class="status-pill" id="server-status">Connecting…</span>
+    <button id="btn-new-take" style="display:none" onclick="showUpload()">+ New Take</button>
+    <button id="btn-progress" style="display:none" onclick="showProgress()">Progress</button>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 1 — Upload
+     ═══════════════════════════════════════════════════════ -->
+<div id="screen-upload">
+  <div class="upload-card">
+    <div>
+      <h2>Upload a Recording</h2>
+      <p>Drop your audio file to get a full vocal coaching analysis — pitch, technique, vibrato, dynamics and more.</p>
+    </div>
+
+    <!-- Main audio drop -->
+    <div class="drop-zone" id="audio-drop" onclick="pickFile('audio-input')">
+      <div class="drop-icon">🎤</div>
+      <div id="audio-drop-label">Drop audio here, or click to browse</div>
+      <div style="font-size:0.75rem; margin-top:0.3rem; color:var(--dim)">WAV · MP3 · FLAC · OGG</div>
+    </div>
+    <input type="file" id="audio-input" accept=".wav,.mp3,.flac,.ogg" style="display:none" onchange="onAudioPick(this)">
+
+    <!-- Song name -->
+    <div class="field-row">
+      <label>Song name <span style="color:var(--dim)">(used to track your progress)</span></label>
+      <input type="text" id="song-name" placeholder="e.g. Bohemian Rhapsody" oninput="clearError()">
+    </div>
+
+    <!-- Phrasing mode -->
+    <div class="field-row">
+      <label>Phrasing <span style="color:var(--dim)">(how lines are grouped)</span></label>
+      <select id="phrasing-mode" style="width:100%; padding:0.5rem; background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:6px">
+        <option value="default">Default — balanced</option>
+        <option value="ballad">Ballad — slow, long lines</option>
+        <option value="uptempo">Up-tempo — fast, short phrases</option>
+      </select>
+    </div>
+
+    <!-- Reference drop (optional) -->
+    <div class="field-row">
+      <label>Reference recording <span style="color:var(--dim)">(optional — enables DTW pitch comparison)</span></label>
+      <div class="ref-drop" id="ref-drop" onclick="pickFile('ref-input')">
+        <span id="ref-drop-label">+ Add reference audio</span>
+      </div>
+      <input type="file" id="ref-input" accept=".wav,.mp3,.flac,.ogg" style="display:none" onchange="onRefPick(this)">
+    </div>
+
+    <div class="upload-error" id="upload-error"></div>
+
+    <div class="upload-footer">
+      <span class="past-songs-link" id="past-songs-link" onclick="showProgress()" style="display:none">
+        View past takes →
+      </span>
+      <button class="cancel" id="btn-cancel" onclick="cancelAnalysis()" style="display:none;margin-left:auto">
+        Cancel
+      </button>
+      <button class="primary" id="btn-analyse" onclick="runAnalysis()" style="margin-left:auto">
+        <span id="analyse-label">Analyse Recording</span>
+        <span class="spinner" id="analyse-spinner"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 2 — Analysis Dashboard
+     ═══════════════════════════════════════════════════════ -->
+<div id="screen-analysis">
+  <div class="analysis-topbar">
+    <span class="song-title" id="analysis-song-name">—</span>
+    <span class="take-badge" id="take-badge">Take 1</span>
+    <span class="score-badge" id="score-badge">—</span>
+    <div class="topbar-right">
+      <button id="btn-show-progress" onclick="showProgress()" style="display:none">Progress →</button>
+    </div>
+  </div>
+
+  <!-- Progress diff banner (shown when take > 1) -->
+  <div class="diff-banner" id="diff-banner"></div>
+
+  <div class="analysis-grid">
+    <!-- Audio playback + Waveform + VAD -->
+    <div class="panel span-2">
+      <h2>Waveform &amp; Voice Activity</h2>
+      <div class="audio-player" id="audio-player">
+        <span class="audio-label">▶ Playback</span>
+        <audio id="audio-el" controls></audio>
+      </div>
+      <div class="canvas-wrap" id="wrap-waveform">
+        <canvas id="waveform-canvas" class="spectrogram"></canvas>
+        <div class="playback-cursor" id="cur-waveform"></div>
+      </div>
+    </div>
+
+    <!-- Log-Mel Spectrogram -->
+    <div class="panel">
+      <h2>Log-Mel Spectrogram (40 bands)</h2>
+      <div class="canvas-wrap" id="wrap-mel">
+        <canvas id="mel-canvas" class="spectrogram"></canvas>
+        <div class="playback-cursor" id="cur-mel"></div>
+      </div>
+    </div>
+
+    <!-- Pitch Posteriorgram -->
+    <div class="panel">
+      <h2>Pitch Posteriorgram (360 bins)</h2>
+      <div class="canvas-wrap" id="wrap-pitch-post">
+        <canvas id="pitch-post-canvas" class="spectrogram"></canvas>
+        <div class="playback-cursor" id="cur-pitch-post"></div>
+      </div>
+    </div>
+
+    <!-- Piano-roll pitch timeline -->
+    <div class="panel span-2">
+      <h2>Note Timeline — pitch over time</h2>
+      <div id="piano-roll-scroll" style="overflow-x:auto; width:100%">
+        <canvas id="piano-roll-canvas" class="spectrogram"></canvas>
+      </div>
+      <div style="font-size:0.72rem; color:var(--dim); margin-top:0.3rem">
+        <span style="color:#6c8cff">●</span> vibrato &nbsp;
+        <span style="color:#88aaff">●</span> breathy &nbsp;
+        <span style="color:#ff6c8c">●</span> falsetto &nbsp;
+        <span style="color:#ffaa33">●</span> belt &nbsp;
+        <span style="color:#4cda7c">●</span> straight / none
+      </div>
+    </div>
+
+    <!-- Detected techniques + reference (side by side when ref present) -->
+    <div class="panel span-2" id="technique-ref-row" style="display:grid;grid-template-columns:1fr;gap:1rem">
+      <div>
+        <h2>Detected Technique</h2>
+        <div class="tech-chips" id="tech-chips" style="margin-top:0.5rem">
+          <div style="color:var(--dim);font-size:0.82rem">No technique data</div>
+        </div>
+      </div>
+      <div id="ref-panel" style="display:none">
+        <h2>Reference Comparison (DTW)</h2>
+        <div id="ref-body" style="margin-top:0.5rem"></div>
+      </div>
+    </div>
+
+    <!-- Key meters -->
+    <!-- Per-phrase breakdown (expandable) — now FIRST, above metrics/observations -->
+    <div class="panel span-2" id="phrases-panel" style="display:none">
+      <h2>Per-Phrase Breakdown</h2>
+      <div class="phrases-toggle" onclick="togglePhrases()">Show phrase details ▾</div>
+      <table class="phrases-table" id="phrases-table">
+        <thead>
+          <tr>
+            <th>#</th><th>Start</th><th>End</th><th>Note</th>
+            <th>Stability</th><th>Vibrato</th><th>RMS Arc</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="phrases-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Key Metrics — moved below the per-phrase breakdown -->
+    <div class="panel span-2">
+      <h2>Key Metrics</h2>
+      <div class="meters-row">
+        <div class="meter m-blue">
+          <div class="m-value" id="m-note">—</div>
+          <div class="m-label">Mean Note</div>
+        </div>
+        <div class="meter m-green">
+          <div class="m-value" id="m-stability">—</div>
+          <div class="m-label">Pitch Stability</div>
+        </div>
+        <div class="meter m-blue">
+          <div class="m-value" id="m-vibrato">—</div>
+          <div class="m-label">Vibrato Rate</div>
+        </div>
+        <div class="meter m-green">
+          <div class="m-value" id="m-vib-depth">—</div>
+          <div class="m-label">Vibrato Depth</div>
+        </div>
+        <div class="meter">
+          <div class="m-value" id="m-hnr">—</div>
+          <div class="m-label">HNR (dB)</div>
+        </div>
+        <div class="meter">
+          <div class="m-value" id="m-phrases">—</div>
+          <div class="m-label">Phrases</div>
+        </div>
+        <div class="meter m-pink">
+          <div class="m-value" id="m-dtw">—</div>
+          <div class="m-label">Ref Deviation</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Coaching observations — moved last, COLLAPSED by default -->
+    <div class="panel span-2">
+      <h2 class="obs-header" onclick="toggleObs()" style="cursor:pointer">
+        Coaching Observations <span id="obs-toggle-ico" style="color:var(--dim);font-size:0.85rem">▸</span>
+      </h2>
+      <div class="obs-list" id="obs-list" style="display:none">
+        <div style="color:var(--dim);font-size:0.82rem">Run an analysis to see observations.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCREEN 3 — Progress
+     ═══════════════════════════════════════════════════════ -->
+<div id="screen-progress">
+  <div class="progress-topbar">
+    <button onclick="showUpload()">← Back</button>
+    <h2 id="progress-song-title">Progress</h2>
+    <span class="take-badge" id="progress-take-count"></span>
+  </div>
+  <div class="progress-body">
+    <div class="progress-charts">
+      <div class="panel">
+        <h2>Overall Score</h2>
+        <div class="chart-wrap"><canvas id="chart-score"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Pitch Stability (lower = better)</h2>
+        <div class="chart-wrap"><canvas id="chart-stability"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Vibrato Coverage (%)</h2>
+        <div class="chart-wrap"><canvas id="chart-vibrato"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Ref. Deviation — cents (lower = better)</h2>
+        <div class="chart-wrap"><canvas id="chart-dtw"></canvas></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>All Takes</h2>
+      <div id="takes-list" class="takes-list"></div>
+    </div>
+
+    <div style="display:flex; gap:0.75rem; flex-wrap:wrap">
+      <select id="song-selector" style="background:var(--surface);border:1px solid var(--border);
+              color:var(--text);border-radius:6px;padding:0.4rem 0.6rem;font-size:0.85rem">
+      </select>
+      <button onclick="loadProgressForSong()">Load</button>
+      <button class="primary" onclick="showUpload()">+ New Take</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════
+// State
+// ══════════════════════════════════════════════════════════════════════
+const API = '';  // same origin
+let audioFile   = null;
+let refFile     = null;
+let currentSong = null;
+let currentData = null;  // last /sessions response
+let progressCharts = {};
+let _abortCtrl  = null;  // AbortController for in-flight analysis
+let _arrays     = null;  // { mel, pit, vad, f0, T } decoded from /analyse/arrays
+let _clipDur    = 0;     // total clip duration in seconds
+
+// ══════════════════════════════════════════════════════════════════════
+// Screen navigation
+// ══════════════════════════════════════════════════════════════════════
+function show(id) {
+  ['screen-upload','screen-analysis','screen-progress'].forEach(s => {
+    document.getElementById(s).style.display = s === id ? 'flex' : 'none';
+  });
+}
+function showUpload()   { show('screen-upload'); }
+function showAnalysis() {
+  show('screen-analysis');
+  document.getElementById('btn-new-take').style.display = '';
+  document.getElementById('btn-progress').style.display = '';
+}
+function showProgress() {
+  show('screen-progress');
+  document.getElementById('btn-new-take').style.display = '';
+  document.getElementById('btn-progress').style.display = 'none';
+  loadSongList();
+  if (currentSong) loadProgressForSong(currentSong);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Health check
+// ══════════════════════════════════════════════════════════════════════
+async function checkHealth() {
+  try {
+    const r = await fetch(API + '/health');
+    const j = await r.json();
+    const el = document.getElementById('server-status');
+    if (j.model_loaded) {
+      el.textContent = 'Model ready'; el.className = 'status-pill ready';
+    } else {
+      el.textContent = 'Model not loaded'; el.className = 'status-pill';
+    }
+    // Check if any past songs exist
+    const sr = await fetch(API + '/sessions');
+    if (sr.ok) {
+      const songs = await sr.json();
+      if (songs.length > 0) {
+        document.getElementById('past-songs-link').style.display = '';
+      }
+    }
+  } catch {
+    document.getElementById('server-status').textContent = 'Server offline';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// File picking
+// ══════════════════════════════════════════════════════════════════════
+function pickFile(inputId) { document.getElementById(inputId).click(); }
+
+function onAudioPick(input) {
+  if (!input.files[0]) return;
+  audioFile = input.files[0];
+  const zone = document.getElementById('audio-drop');
+  document.getElementById('audio-drop-label').textContent = audioFile.name;
+  zone.classList.add('loaded');
+  // Auto-fill song name from filename if empty
+  const nameInput = document.getElementById('song-name');
+  if (!nameInput.value) {
+    nameInput.value = audioFile.name.replace(/\.[^.]+$/, '');
+  }
+  clearError();
+}
+function onRefPick(input) {
+  if (!input.files[0]) return;
+  refFile = input.files[0];
+  const zone = document.getElementById('ref-drop');
+  document.getElementById('ref-drop-label').textContent = '✓ ' + refFile.name;
+  zone.classList.add('loaded');
+}
+
+// Drag-and-drop for audio zone
+const audioDrop = document.getElementById('audio-drop');
+audioDrop.addEventListener('dragover', e => { e.preventDefault(); audioDrop.classList.add('dragover'); });
+audioDrop.addEventListener('dragleave', () => audioDrop.classList.remove('dragover'));
+audioDrop.addEventListener('drop', e => {
+  e.preventDefault(); audioDrop.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f) { audioFile = f; document.getElementById('audio-drop-label').textContent = f.name; audioDrop.classList.add('loaded'); clearError(); }
+});
+
+function clearError() { document.getElementById('upload-error').textContent = ''; }
+function showError(msg) { document.getElementById('upload-error').textContent = msg; }
+
+// ══════════════════════════════════════════════════════════════════════
+// Run analysis
+// ══════════════════════════════════════════════════════════════════════
+function _setAnalysing(on) {
+  document.getElementById('analyse-label').textContent = on ? 'Analysing…' : 'Analyse Recording';
+  document.getElementById('analyse-spinner').classList.toggle('active', on);
+  document.getElementById('btn-analyse').disabled = on;
+  document.getElementById('btn-analyse').style.display = on ? 'none' : '';
+  document.getElementById('btn-cancel').style.display  = on ? '' : 'none';
+}
+
+function cancelAnalysis() {
+  if (_abortCtrl) { _abortCtrl.abort(); _abortCtrl = null; }
+  _setAnalysing(false);
+  showError('Analysis cancelled.');
+}
+
+async function runAnalysis() {
+  if (!audioFile) { showError('Please select an audio file.'); return; }
+  const songName = document.getElementById('song-name').value.trim();
+  if (!songName) { showError('Please enter a song name.'); return; }
+
+  _abortCtrl = new AbortController();
+  _setAnalysing(true);
+  clearError();
+
+  try {
+    const form = new FormData();
+    form.append('audio', audioFile);
+    if (refFile) form.append('reference', refFile);
+    const phrasingEl = document.getElementById('phrasing-mode');
+    form.append('phrasing', phrasingEl ? phrasingEl.value : 'default');
+
+    const res = await fetch(API + `/sessions/${encodeURIComponent(songName)}`, {
+      method: 'POST', body: form, signal: _abortCtrl.signal
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || res.statusText);
+    }
+    currentData = await res.json();
+    currentSong = songName;
+    _arrays = null; // reset stale arrays
+    renderAnalysis(currentData);
+    showAnalysis();
+    document.getElementById('btn-show-progress').style.display =
+      currentData.take_number > 1 ? '' : 'none';
+  } catch (e) {
+    if (e.name !== 'AbortError') showError('Error: ' + e.message);
+  } finally {
+    _abortCtrl = null;
+    _setAnalysing(false);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Render Analysis Dashboard
+// ══════════════════════════════════════════════════════════════════════
+function renderAnalysis(data) {
+  const report = data.report;
+  const coaching = report.coaching || {};
+
+  // Title + score
+  document.getElementById('analysis-song-name').textContent = currentSong;
+  document.getElementById('take-badge').textContent = `Take ${data.take_number}`;
+  const score = coaching.overall_score;
+  const sb = document.getElementById('score-badge');
+  sb.textContent = score != null ? `${score}/100` : '—';
+  sb.className = 'score-badge ' + (score >= 70 ? 'high' : score >= 45 ? 'mid' : 'low');
+
+  // Progress diff banner
+  renderDiff(data.progress_diff || {});
+
+  // Audio player — wire uploaded file to player
+  renderAudioPlayer();
+
+  // Set clip duration for playback cursor sync
+  _clipDur = report.clip_duration_s || 0;
+
+  // Render phrase-derived visuals immediately, then fetch real arrays
+  renderWaveformFromPhrases(report);
+  renderPianoRoll(report);
+  renderTechChips(report.technique || {});
+  renderMeters(report, coaching);
+  renderObservations(coaching.observations || []);
+  renderPhrases(report.phrases || [], coaching.observations || []);
+  renderReferencePanel(report.reference_comparison);
+
+  // Fetch and draw real mel + posteriorgram spectrograms
+  fetchAndDrawArrays();
+}
+
+// ── Audio player ─────────────────────────────────────────────────────
+function renderAudioPlayer() {
+  if (!audioFile) return;
+  const player = document.getElementById('audio-player');
+  const el = document.getElementById('audio-el');
+  // Revoke old URL if any
+  if (el._blobUrl) URL.revokeObjectURL(el._blobUrl);
+  const url = URL.createObjectURL(audioFile);
+  el._blobUrl = url;
+  el.src = url;
+  player.classList.add('visible');
+}
+
+// ── Viridis colormap (same poly approx as NanoPitch) ─────────────────
+function viridis(t) {
+  t = Math.max(0, Math.min(1, t));
+  const r = Math.round(255 * Math.max(0, Math.min(1, -0.7 + 4.4*t - 4.1*t*t + 1.4*t*t*t)));
+  const g = Math.round(255 * Math.max(0, Math.min(1, -0.1 + 1.2*t + 0.5*t*t - 1.0*t*t*t)));
+  const b = Math.round(255 * Math.max(0, Math.min(1, 0.3 + 1.5*t - 3.2*t*t + 2.0*t*t*t)));
+  return [r, g, b];
+}
+
+// ── Fetch real spectrograms from /analyse/arrays and draw them ───────
+async function fetchAndDrawArrays() {
+  if (!audioFile) return;
+  try {
+    const form = new FormData();
+    form.append('audio', audioFile);
+    const res = await fetch(API + '/analyse/arrays', { method: 'POST', body: form });
+    if (!res.ok) return;
+    const j = await res.json();
+    const T = j.T;
+
+    function dec(b64) {
+      const bin = atob(b64);
+      const buf = new ArrayBuffer(bin.length);
+      const u8  = new Uint8Array(buf);
+      for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      return new Float32Array(buf);
+    }
+
+    _arrays = {
+      mel: dec(j.mel_db),
+      pit: dec(j.pitch_post),
+      vad: dec(j.vad),
+      f0:  dec(j.f0_hz),
+      T,
+    };
+
+    drawMelCanvas(_arrays.mel, T);
+    drawPitchPostCanvas(_arrays.pit, T);
+    drawWaveformFromVAD(_arrays.vad, _arrays.f0, T);
+    setupPlaybackSync();
+  } catch(e) {
+    console.warn('arrays fetch failed', e);
+  }
+}
+
+// ── Playback sync: move cursor over canvases as audio plays ──────────
+function setupPlaybackSync() {
+  const audioEl = document.getElementById('audio-el');
+  if (!audioEl || !_arrays) return;
+
+  const cursors = ['cur-waveform', 'cur-mel', 'cur-pitch-post'];
+  const wraps   = ['wrap-waveform', 'wrap-mel', 'wrap-pitch-post'];
+
+  function moveCursors() {
+    if (!_clipDur || audioEl.paused) return;
+    const frac = audioEl.currentTime / _clipDur;
+    cursors.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const wrap = el.parentElement;
+      el.style.left = (frac * wrap.offsetWidth) + 'px';
+    });
+  }
+
+  function onPlay() {
+    wraps.forEach(id => document.getElementById(id)?.classList.add('playing'));
+  }
+  function onPause() {
+    wraps.forEach(id => document.getElementById(id)?.classList.remove('playing'));
+  }
+
+  audioEl.removeEventListener('timeupdate', moveCursors);
+  audioEl.removeEventListener('play',  onPlay);
+  audioEl.removeEventListener('pause', onPause);
+  audioEl.removeEventListener('ended', onPause);
+
+  audioEl.addEventListener('timeupdate', moveCursors);
+  audioEl.addEventListener('play',  onPlay);
+  audioEl.addEventListener('pause', onPause);
+  audioEl.addEventListener('ended', onPause);
+}
+
+// ── Mel spectrogram — viridis pixel canvas ────────────────────────────
+// mel is (40, T) row-major: mel[b*T + t], same layout as librosa mel output
+function drawMelCanvas(mel, T) {
+  const N_BANDS = 40;
+  const canvas = document.getElementById('mel-canvas');
+  canvas.width = T; canvas.height = N_BANDS;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(T, N_BANDS);
+
+  // Percentile-based normalisation for better contrast:
+  // use 5th/95th percentile instead of min/max so outliers don't crush the range
+  const sorted = Float32Array.from(mel).sort();
+  const mn = sorted[Math.floor(sorted.length * 0.05)];
+  const mx = sorted[Math.floor(sorted.length * 0.95)];
+  const range = mx - mn || 1;
+
+  for (let b = 0; b < N_BANDS; b++) {
+    const row = N_BANDS - 1 - b; // flip: low freq at bottom
+    for (let t = 0; t < T; t++) {
+      const val = Math.max(0, Math.min(1, (mel[b * T + t] - mn) / range));
+      const [r, g, bl] = viridis(val);
+      const idx = (row * T + t) * 4;
+      img.data[idx] = r; img.data[idx+1] = g; img.data[idx+2] = bl; img.data[idx+3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+// ── Pitch posteriorgram — viridis pixel canvas ────────────────────────
+// Mirrors NanoPitch drawPitch(): bins 60-240, 120 display rows, *2 contrast.
+// pit is (T*360) row-major: pit[t*360 + bin].
+// Temporal box-blur (radius 2) applied before rendering for a smoother look.
+function drawPitchPostCanvas(pit, T) {
+  const N_BINS = 360;
+  const BIN_START = 60, BIN_END = 240;
+  const N_SHOW = BIN_END - BIN_START;
+  const H_DISPLAY = 120;
+
+  // Box-blur across time (radius 2) on the displayed bin range only
+  const BLUR_R = 2;
+  const blurred = new Float32Array(T * N_SHOW);
+  for (let b = 0; b < N_SHOW; b++) {
+    for (let t = 0; t < T; t++) {
+      let sum = 0, cnt = 0;
+      for (let dt = -BLUR_R; dt <= BLUR_R; dt++) {
+        const tt = t + dt;
+        if (tt < 0 || tt >= T) continue;
+        sum += pit[tt * N_BINS + (BIN_END - 1 - b)];
+        cnt++;
+      }
+      blurred[b * T + t] = sum / cnt;
+    }
+  }
+
+  const canvas = document.getElementById('pitch-post-canvas');
+  canvas.width = T; canvas.height = H_DISPLAY;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(T, H_DISPLAY);
+
+  for (let row = 0; row < H_DISPLAY; row++) {
+    const b = Math.floor(row * N_SHOW / H_DISPLAY);
+    const flippedRow = H_DISPLAY - 1 - row;
+    for (let t = 0; t < T; t++) {
+      const val = blurred[b * T + t];
+      const [r, g, bl] = viridis(Math.min(1, val * 2));
+      const idx = (flippedRow * T + t) * 4;
+      img.data[idx] = r; img.data[idx+1] = g; img.data[idx+2] = bl; img.data[idx+3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+// ── Waveform + VAD — mirrors NanoPitch drawWaveform() exactly ────────
+// Layer 1: green VAD background shading (alpha = vad * 0.15, threshold 0.3)
+// Layer 2: F0 pitch contour as blue amplitude-like envelope (log-scale Y)
+// 4px per frame to match NanoPitch's HISTORY*4 pixel width convention
+function drawWaveformFromVAD(vad, f0, T) {
+  const PX = 4;
+  const canvas = document.getElementById('waveform-canvas');
+  const W = T * PX;
+  const H = 60;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#0f0f14';
+  ctx.fillRect(0, 0, W, H);
+
+  // Layer 1: VAD background shading — translucent (lighter than before so the
+  // smooth envelope reads as the primary element).
+  for (let t = 0; t < T; t++) {
+    const v = vad[t] || 0;
+    if (v > 0.3) {
+      ctx.fillStyle = `rgba(76,218,124,${(v * 0.08).toFixed(3)})`;
+      ctx.fillRect(t * PX, 0, PX, H);
+    }
+  }
+
+  // Layer 2: smooth amplitude ENVELOPE (continuous filled shape mirrored around a
+  // static midline that rises/falls with voice activity), replacing the discrete
+  // per-frame bars. Amplitude = log-normalised F0 where voiced, small VAD stub
+  // where unvoiced. Smoothed with a moving average so it reads as a waveform.
+  const F_LO = 65, F_HI = 1047;
+  const logLo = Math.log2(F_LO), logHi = Math.log2(F_HI);
+  const mid = H / 2;
+  const raw = new Float32Array(T);
+  for (let t = 0; t < T; t++) {
+    const hz = f0[t];
+    if (hz > 30) {
+      const norm = (Math.log2(Math.max(F_LO, Math.min(F_HI, hz))) - logLo) / (logHi - logLo);
+      raw[t] = (0.15 + norm * 0.75) * mid * 0.92;   // 15-90% of half-height
+    } else {
+      raw[t] = (vad[t] || 0) * mid * 0.12;            // near-silent stub
+    }
+  }
+  // Moving-average smoothing (window scales with zoom so it always looks smooth)
+  const win = Math.max(2, Math.round(T / 200));
+  const env = new Float32Array(T);
+  let acc = 0;
+  for (let t = 0; t < T; t++) {
+    acc += raw[t];
+    if (t >= win) acc -= raw[t - win];
+    env[t] = acc / Math.min(t + 1, win);
+  }
+  // Filled mirrored envelope (top half then back along bottom half)
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, 'rgba(108,140,255,0.85)');
+  grad.addColorStop(0.5, 'rgba(108,140,255,0.55)');
+  grad.addColorStop(1, 'rgba(108,140,255,0.85)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(0, mid - env[0]);
+  for (let t = 0; t < T; t++) ctx.lineTo(t * PX + PX / 2, mid - env[t]);
+  for (let t = T - 1; t >= 0; t--) ctx.lineTo(t * PX + PX / 2, mid + env[t]);
+  ctx.closePath();
+  ctx.fill();
+  // Static centre line (the "running line" baseline)
+  ctx.strokeStyle = 'rgba(108,140,255,0.35)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(W, mid); ctx.stroke();
+}
+
+// ── Waveform fallback when arrays not yet loaded ─────────────────────
+function renderWaveformFromPhrases(report) {
+  const canvas = document.getElementById('waveform-canvas');
+  const W = 800, H = 64;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#0f0f14';
+  ctx.fillRect(0, 0, W, H);
+
+  const dur = report.clip_duration_s;
+  if (!dur) return;
+
+  // Horizontal axis line
+  ctx.strokeStyle = '#2a2a3a'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+
+  const phrases = report.phrases || [];
+  const TECH_COLORS = { vibrato:'#6c8cff', breathy:'#88aaff', falsetto:'#ff6c8c', belt:'#ffaa33' };
+  phrases.forEach(p => {
+    const x1 = (p.start_s / dur) * W;
+    const x2 = (p.end_s   / dur) * W;
+    // Green voiced region
+    ctx.fillStyle = 'rgba(76,218,124,0.2)';
+    ctx.fillRect(x1, 0, x2 - x1, H);
+    // Dominant technique tint
+    const tech = p.technique || {};
+    const dom = Object.entries(tech).sort((a,b) => b[1]-a[1])[0];
+    if (dom && dom[1] > 0.35) {
+      ctx.fillStyle = (TECH_COLORS[dom[0]] || '#6c8cff') + '55';
+      ctx.fillRect(x1, H*0.25, x2-x1, H*0.5);
+    }
+    // RMS arc as filled height bar
+    if (p.rms_arc_db != null) {
+      const strength = Math.min(1, Math.max(0, (p.rms_arc_db + 3) / 12));
+      const barH = strength * H * 0.7;
+      ctx.fillStyle = 'rgba(76,218,124,0.45)';
+      ctx.fillRect(x1, (H - barH) / 2, x2 - x1, barH);
+    }
+    // Phrase boundary tick
+    ctx.strokeStyle = 'rgba(76,218,124,0.5)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x1, 0); ctx.lineTo(x1, H); ctx.stroke();
+  });
+
+  // Time axis labels
+  ctx.fillStyle = '#444455'; ctx.font = '9px monospace';
+  for (let s = 0; s <= dur; s += Math.max(1, Math.round(dur / 8))) {
+    const x = (s / dur) * W;
+    ctx.fillText(s + 's', x + 2, H - 3);
+  }
+}
+
+// ── Piano-roll note timeline ─────────────────────────────────────────
+// Draws a fixed-height horizontal grid: time on X, pitch row on Y.
+// Each detected phrase is a coloured horizontal block at its mean pitch.
+function renderPianoRoll(report) {
+  const canvas = document.getElementById('piano-roll-canvas');
+  const scroll = document.getElementById('piano-roll-scroll');
+  const dpr = window.devicePixelRatio || 1;
+  // Width: at least the container width, but expand to >=14 px/sec so a long
+  // clip spreads out (scrolls) instead of clumping into the fixed page width.
+  const dur0 = report.clip_duration_s || 1;
+  const containerW = (scroll && scroll.clientWidth) || canvas.offsetWidth || 800;
+  const W = Math.max(containerW, Math.round(dur0 * 14));
+  canvas.style.width = W + 'px';
+  const H = 140;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.fillStyle = '#0f0f14';
+  ctx.fillRect(0, 0, W, H);
+
+  const dur = report.clip_duration_s;
+  const phrases = report.phrases || [];
+
+  // ── Preferred path: REAL notes from the trained note head (report.notes) ──
+  // Each note has {onset_s, offset_s, midi, note}. When present, render exact
+  // note blocks (true onset/offset + MIDI pitch). Falls back to the phrase-based
+  // f0 rendering below when no note model is loaded (report.notes absent/empty).
+  const realNotes = (report.notes || []).filter(n => n.midi != null);
+  if (dur && realNotes.length) {
+    const midis = realNotes.map(n => n.midi);
+    const mLo = Math.min(...midis) - 2, mHi = Math.max(...midis) + 2;
+    const midiToY = m => H - ((m - mLo) / Math.max(1, mHi - mLo)) * (H - 24) - 4;
+    // Semitone grid + C labels
+    ctx.strokeStyle = '#1e1e2a'; ctx.lineWidth = 1;
+    for (let m = Math.ceil(mLo); m <= Math.floor(mHi); m++) {
+      const y = midiToY(m);
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      if (m % 12 === 0) {
+        ctx.fillStyle = '#2a2a44'; ctx.font = '9px monospace';
+        ctx.fillText('C' + (Math.floor(m / 12) - 1), 2, y - 1);
+      }
+    }
+    // Note blocks
+    realNotes.forEach(n => {
+      const x1 = Math.round((n.onset_s / dur) * W);
+      const x2 = Math.max(x1 + 3, Math.round((n.offset_s / dur) * W));
+      const y  = midiToY(n.midi);
+      ctx.fillStyle = '#6c8cffcc';
+      ctx.beginPath();
+      ctx.roundRect(x1, y - 5, x2 - x1, 10, Math.min(4, (x2 - x1) / 2));
+      ctx.fill();
+      const lbl = n.note || '';
+      ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, sans-serif';
+      const lblW = ctx.measureText(lbl).width;
+      if (x2 - x1 >= lblW + 6) {
+        ctx.fillStyle = 'rgba(255,255,255,0.95)';
+        ctx.fillText(lbl, x1 + (x2 - x1 - lblW) / 2, y + 3.5);
+      } else {
+        ctx.fillStyle = '#6c8cff';
+        ctx.fillText(lbl, x1 + (x2 - x1 - lblW) / 2, y - 8);
+      }
+    });
+    // Time axis
+    ctx.fillStyle = '#555566'; ctx.font = '9px monospace';
+    const step = Math.max(1, Math.round(dur / 8));
+    for (let s = 0; s <= dur; s += step) ctx.fillText(s + 's', (s / dur) * W + 2, H - 2);
+    return;
+  }
+
+  // ── Fallback: phrase-based f0 rendering (no note model loaded) ──
+  if (!dur || !phrases.length) {
+    ctx.fillStyle = '#444455'; ctx.font = '11px monospace';
+    ctx.fillText('No phrases detected', 12, H/2);
+    return;
+  }
+
+  // Pitch range: find min/max across voiced phrases, expand by 2 semitones
+  const voiced = phrases.filter(p => p.f0_mean_hz && p.f0_mean_hz > 0);
+  if (!voiced.length) return;
+
+  const allHz = voiced.map(p => p.f0_mean_hz);
+  const minHz = Math.min(...allHz) * 0.89;  // ~2 semitones below
+  const maxHz = Math.max(...allHz) * 1.12;
+  const logLo = Math.log2(minHz), logHi = Math.log2(maxHz);
+  const hzToY = hz => H - ((Math.log2(hz) - logLo) / (logHi - logLo)) * (H - 24) - 4;
+
+  // Grid lines at each semitone
+  ctx.strokeStyle = '#1e1e2a'; ctx.lineWidth = 1;
+  let midiLo = Math.floor(69 + 12 * Math.log2(minHz / 440));
+  let midiHi = Math.ceil(69 + 12 * Math.log2(maxHz / 440));
+  for (let m = midiLo; m <= midiHi; m++) {
+    const fHz = 440 * Math.pow(2, (m - 69) / 12);
+    if (fHz < minHz || fHz > maxHz) continue;
+    const y = hzToY(fHz);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    // Label C notes
+    if (m % 12 === 0) {
+      ctx.fillStyle = '#2a2a44'; ctx.font = '9px monospace';
+      ctx.fillText('C' + (Math.floor(m / 12) - 1), 2, y - 1);
+    }
+  }
+
+  // Note blocks
+  const TECH_COLORS = { vibrato:'#6c8cff', breathy:'#88aaff', falsetto:'#ff6c8c', belt:'#ffaa33' };
+  voiced.forEach(p => {
+    const x1 = Math.round((p.start_s / dur) * W);
+    const x2 = Math.max(x1 + 3, Math.round((p.end_s / dur) * W));
+    const y  = hzToY(p.f0_mean_hz);
+
+    // Block height: stability-based (±half semitone = ±50¢)
+    const stdHz = p.f0_std_hz || 0;
+    const centStd = stdHz > 0 && p.f0_mean_hz > 0
+      ? Math.abs(1200 * Math.log2((p.f0_mean_hz + stdHz) / p.f0_mean_hz)) : 20;
+    const blockH = Math.max(4, Math.min(20, centStd / 8));
+
+    // Colour strictly by the DOMINANT detected technique (matches the legend).
+    // 'straight'/none → green. Only colour by a technique that's actually present
+    // (>0.4), so phrases without a confident technique stay green instead of all
+    // defaulting to blue.
+    const tech = p.technique || {};
+    const dom = Object.entries(tech)
+      .filter(([k]) => k !== 'straight')          // straight = no colourable technique
+      .sort((a,b) => b[1]-a[1])[0];
+    let color = '#4cda7c';                         // green default (straight/none)
+    if (dom && dom[1] > 0.4) color = TECH_COLORS[dom[0]] || color;
+
+    // Rounded block
+    ctx.fillStyle = color + 'cc';
+    ctx.beginPath();
+    const r = Math.min(4, (x2-x1)/2, blockH/2);
+    ctx.roundRect(x1, y - blockH/2, x2-x1, blockH, r);
+    ctx.fill();
+
+    // Note label: inside block if wide enough, otherwise centred above it
+    const noteLbl = hzToNote(p.f0_mean_hz).split(' ')[0];
+    const blockW  = x2 - x1;
+    ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, sans-serif';
+    const lblW = ctx.measureText(noteLbl).width;
+    if (blockW >= lblW + 6) {
+      // fits inside
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.fillText(noteLbl, x1 + (blockW - lblW) / 2, y + 3.5);
+    } else {
+      // draw above the block, centred on its midpoint
+      ctx.fillStyle = color;
+      ctx.fillText(noteLbl, x1 + (blockW - lblW) / 2, y - blockH / 2 - 3);
+    }
+  });
+
+  // Time axis
+  ctx.fillStyle = '#555566'; ctx.font = '9px monospace';
+  const step = Math.max(1, Math.round(dur / 8));
+  for (let s = 0; s <= dur; s += step) {
+    ctx.fillText(s + 's', (s / dur) * W + 2, H - 2);
+  }
+}
+
+// ── Technique chips ───────────────────────────────────────────────────
+const TECH_META = {
+  vibrato:  { color: '#6c8cff', label: 'Vibrato',  threshold: 0.40 },
+  breathy:  { color: '#88aaff', label: 'Breathy',  threshold: 0.35 },
+  falsetto: { color: '#ff6c8c', label: 'Falsetto', threshold: 0.30 },
+  belt:     { color: '#ffaa33', label: 'Belt',     threshold: 0.35 },
+};
+function renderTechChips(tech) {
+  const el = document.getElementById('tech-chips');
+  if (!tech || Object.keys(tech).length === 0) {
+    el.innerHTML = '<div style="color:var(--dim);font-size:0.82rem">No technique data in this checkpoint</div>';
+    return;
+  }
+  el.innerHTML = Object.entries(tech).map(([name, val]) => {
+    const meta = TECH_META[name] || { color: '#888', label: name, threshold: 0.35 };
+    const pct = val != null ? Math.round(val * 100) : 0;
+    const cls = pct >= meta.threshold * 100 ? 'detected' : pct >= 15 ? 'marginal' : 'absent';
+    const stateLabel = cls === 'detected' ? 'detected' : cls === 'marginal' ? 'marginal' : 'not detected';
+    return `<div class="tech-chip ${cls}" style="border-color:${meta.color};color:${meta.color}">
+      <div class="chip-dot" style="background:${meta.color}"></div>
+      ${meta.label} <span style="font-weight:400;opacity:0.7">${pct}%</span>
+    </div>`;
+  }).join('');
+}
+
+// ── Key meters ───────────────────────────────────────────────────────
+function hzToNote(hz) {
+  if (!hz || hz <= 0) return '—';
+  const midi = 69 + 12 * Math.log2(hz / 440);
+  const note = Math.round(midi);
+  const cents = Math.round((midi - note) * 100);
+  const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const name = names[((note % 12) + 12) % 12];
+  const octave = Math.floor(note / 12) - 1;
+  const sign = cents >= 0 ? '+' : '';
+  return `${name}${octave} ${sign}${cents}¢`;
+}
+
+function renderMeters(report, coaching) {
+  const pitch   = report.pitch || {};
+  const vib     = report.vibrato || {};
+  const qual    = report.voice_quality || {};
+  const ref     = report.reference_comparison;
+  const mos     = report.mos || {};
+
+  const f0 = pitch.f0_mean_hz;
+  document.getElementById('m-note').textContent =
+    f0 ? hzToNote(f0).split(' ')[0] : '—';
+
+  const std = pitch.f0_stability_std_hz;
+  const cents_std = (std && f0)
+    ? Math.round(Math.abs(1200 * Math.log2((f0 + std) / f0))) : null;
+  document.getElementById('m-stability').textContent =
+    cents_std != null ? `±${cents_std}¢` : '—';
+
+  const rate = vib.rate_hz_mean;
+  document.getElementById('m-vibrato').textContent =
+    rate != null ? `${rate.toFixed(2)} Hz` : '—';
+
+  const depth = vib.depth_cents_mean;
+  document.getElementById('m-vib-depth').textContent =
+    depth != null ? `${Math.round(depth)}¢` : '—';
+
+  const hnr = qual.hnr_mean_db;
+  document.getElementById('m-hnr').textContent =
+    hnr != null && !isNaN(hnr) ? `${hnr.toFixed(1)}` : '—';
+
+  document.getElementById('m-phrases').textContent =
+    report.n_phrases != null ? report.n_phrases : '—';
+
+  const dev = ref && ref.mean_deviation_cents;
+  document.getElementById('m-dtw').textContent =
+    dev != null && !isNaN(dev) ? `${Math.round(dev)}¢` : '—';
+  // MOS /5 tile removed — the headline /100 score already folds in the quality
+  // head (via MOS) plus pitch/vibrato/technique, so we surface one score.
+}
+
+// ── Observations ─────────────────────────────────────────────────────
+const OBS_ICONS = { good: '✓', acceptable: '○', needs_work: '⚠' };
+function renderObservations(obs) {
+  const el = document.getElementById('obs-list');
+  if (!obs || obs.length === 0) {
+    el.innerHTML = '<div style="color:var(--dim);font-size:0.82rem">No observations.</div>';
+    return;
+  }
+  el.innerHTML = obs.map(o => `
+    <div class="obs-item ${o.rating}">
+      <span class="obs-icon">${OBS_ICONS[o.rating] || '·'}</span>
+      <div class="obs-text">
+        <div class="obs-axis">${o.axis} · ${o.metric} · ${o.value}</div>
+        <div class="obs-msg">${o.observation}</div>
+        <div class="obs-action">${o.action}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── Phrases ──────────────────────────────────────────────────────────
+function renderPhrases(phrases, observations) {
+  const panel = document.getElementById('phrases-panel');
+  if (!phrases.length) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  observations = observations || [];
+  const tbody = document.getElementById('phrases-tbody');
+  tbody.innerHTML = phrases.map(p => {
+    const noteName = p.f0_mean_hz ? hzToNote(p.f0_mean_hz) : '—';
+    const std = p.f0_mean_hz && p.f0_std_hz
+      ? Math.round(Math.abs(1200 * Math.log2((p.f0_mean_hz + p.f0_std_hz) / p.f0_mean_hz))) + '¢'
+      : '—';
+    const vib = p.vibrato ? `${p.vib_rate_hz || '?'} Hz  ${p.vib_depth ? Math.round(p.vib_depth)+'¢' : ''}` : '—';
+    const arc = p.rms_arc_db != null ? p.rms_arc_db.toFixed(1) + ' dB' : '—';
+
+    // Observations tagged to this phrase: metric ends with "_phrase_<i>".
+    const phraseObs = observations.filter(
+      o => o.metric && o.metric.endsWith(`_phrase_${p.i}`));
+    const obsHtml = phraseObs.length
+      ? phraseObs.map(o => `<div class="phrase-obs phrase-obs-${o.rating}">
+           <span class="po-axis">${o.axis}</span> ${o.observation}
+           ${o.action ? `<div class="po-action">→ ${o.action}</div>` : ''}
+         </div>`).join('')
+      : `<div class="phrase-obs phrase-obs-good">No specific issues flagged for this phrase.</div>`;
+
+    return `<tr class="phrase-row" onclick="togglePhraseRow(${p.i})">
+      <td>${p.i}</td>
+      <td>${p.start_s}s</td>
+      <td>${p.end_s}s</td>
+      <td class="note-name">${noteName.split(' ')[0]}</td>
+      <td>${std}</td>
+      <td>${vib}</td>
+      <td>${arc}</td>
+      <td class="phrase-expand-ico" id="phrase-ico-${p.i}">▸</td>
+    </tr>
+    <tr class="phrase-detail" id="phrase-detail-${p.i}" style="display:none">
+      <td colspan="8">
+        <div class="phrase-detail-inner">
+          <button class="phrase-play-btn" onclick="event.stopPropagation();playPhrase(${p.start_s},${p.end_s})">
+            ▶ Play Phrase ${p.i}
+          </button>
+          <div class="phrase-obs-list">${obsHtml}</div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+let _phrasePlayTimer = null;
+function playPhrase(startS, endS) {
+  const el = document.getElementById('audio-el');
+  if (!el || !el.src) return;
+  if (_phrasePlayTimer) { clearInterval(_phrasePlayTimer); _phrasePlayTimer = null; }
+  el.currentTime = startS;
+  el.play();
+  // Stop at the phrase end (timeupdate fires ~4×/s; interval is a safety net).
+  const stop = () => {
+    if (el.currentTime >= endS) {
+      el.pause();
+      el.removeEventListener('timeupdate', stop);
+      if (_phrasePlayTimer) { clearInterval(_phrasePlayTimer); _phrasePlayTimer = null; }
+    }
+  };
+  el.addEventListener('timeupdate', stop);
+  _phrasePlayTimer = setInterval(stop, 50);
+}
+
+function togglePhraseRow(i) {
+  const d = document.getElementById(`phrase-detail-${i}`);
+  const ico = document.getElementById(`phrase-ico-${i}`);
+  const open = d.style.display === 'none';
+  d.style.display = open ? '' : 'none';
+  if (ico) ico.textContent = open ? '▾' : '▸';
+}
+function toggleObs() {
+  const list = document.getElementById('obs-list');
+  const ico = document.getElementById('obs-toggle-ico');
+  const open = list.style.display === 'none';
+  list.style.display = open ? '' : 'none';
+  if (ico) ico.textContent = open ? '▾' : '▸';
+}
+function togglePhrases() {
+  const t = document.getElementById('phrases-table');
+  const toggle = document.querySelector('.phrases-toggle');
+  const visible = t.classList.toggle('visible');
+  toggle.textContent = visible ? 'Hide phrase details ▴' : 'Show phrase details ▾';
+}
+
+// ── DTW Reference Comparison Panel ───────────────────────────────────
+function renderReferencePanel(ref) {
+  const panel = document.getElementById('ref-panel');
+  const row   = document.getElementById('technique-ref-row');
+  if (!ref || ref.dtw_distance_cents == null) {
+    panel.style.display = 'none';
+    row.style.gridTemplateColumns = '1fr';
+    return;
+  }
+  panel.style.display = '';
+  row.style.gridTemplateColumns = '1fr 1fr';
+
+  const dev    = ref.mean_deviation_cents;
+  const maxDev = ref.max_deviation_cents;
+  const dtw    = ref.dtw_distance_cents;
+  const rating = dev < 25 ? 'good' : dev < 50 ? 'acceptable' : 'needs_work';
+  const ratingColor = { good: 'var(--green)', acceptable: 'var(--amber)', needs_work: 'var(--warn)' }[rating];
+  const ratingLabel = { good: 'On pitch', acceptable: 'Close', needs_work: 'Needs work' }[rating];
+  const barWidth = Math.min(100, (dev / 100) * 100);
+
+  document.getElementById('ref-body').innerHTML = `
+    <div class="dtw-grid">
+      <div class="dtw-stat">
+        <div class="ds-val" style="color:${ratingColor}">${Math.round(dev)}¢</div>
+        <div class="ds-lbl">Mean Deviation</div>
+      </div>
+      <div class="dtw-stat">
+        <div class="ds-val">${Math.round(maxDev)}¢</div>
+        <div class="ds-lbl">Max Deviation</div>
+      </div>
+      <div class="dtw-stat">
+        <div class="ds-val">${dtw.toFixed(1)}¢</div>
+        <div class="ds-lbl">DTW Distance</div>
+      </div>
+    </div>
+    <div class="dtw-bar-wrap">
+      <div class="dtw-bar-label">Mean pitch deviation — <span style="color:${ratingColor}">${ratingLabel}</span> (target: &lt;25¢)</div>
+      <div class="dtw-bar-bg">
+        <div class="dtw-bar-fill" style="width:${barWidth}%;background:${ratingColor}"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:0.68rem;color:var(--dim);margin-top:0.2rem">
+        <span>0¢</span><span>25¢</span><span>50¢</span><span>100¢+</span>
+      </div>
+    </div>`;
+}
+
+// ── Progress diff banner ──────────────────────────────────────────────
+function renderDiff(diff) {
+  const el = document.getElementById('diff-banner');
+  if (!diff || Object.keys(diff).length === 0) { el.classList.remove('visible'); return; }
+  el.classList.add('visible');
+  el.innerHTML = '<span style="color:var(--dim);font-size:0.78rem;margin-right:0.5rem">vs last take:</span>' +
+    Object.entries(diff).map(([label, d]) => {
+      const arrow = d.direction === 'improved' ? '↑' : d.direction === 'regressed' ? '↓' : '→';
+      const cls   = d.direction === 'improved' ? 'improved' : d.direction === 'regressed' ? 'regressed' : 'unchanged';
+      const sign  = d.delta > 0 ? '+' : '';
+      return `<span class="diff-item">
+        <span class="diff-label">${label}</span>
+        <span class="${cls}">${arrow} ${sign}${d.delta}${d.unit || ''}</span>
+      </span>`;
+    }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Progress screen
+// ══════════════════════════════════════════════════════════════════════
+async function loadSongList() {
+  try {
+    const r = await fetch(API + '/sessions');
+    const songs = await r.json();
+    const sel = document.getElementById('song-selector');
+    sel.innerHTML = songs.map(s =>
+      `<option value="${s.song_id}">${s.song_id} (${s.n_takes} take${s.n_takes!==1?'s':''})</option>`
+    ).join('');
+    if (currentSong) sel.value = currentSong;
+  } catch (e) { console.warn('Could not load song list', e); }
+}
+
+async function loadProgressForSong(songId) {
+  const sel = document.getElementById('song-selector');
+  const name = songId || sel.value;
+  if (!name) return;
+  currentSong = name;
+
+  try {
+    const r = await fetch(API + `/sessions/${encodeURIComponent(name)}`);
+    const session = await r.json();
+    const takes = session.takes || [];
+
+    document.getElementById('progress-song-title').textContent = name;
+    document.getElementById('progress-take-count').textContent =
+      `${takes.length} take${takes.length !== 1 ? 's' : ''}`;
+
+    const takeNums = takes.map((_, i) => `Take ${i+1}`);
+
+    function safeSeries(fn) { return takes.map(t => { try { return fn(t); } catch { return null; } }); }
+
+    const scores     = safeSeries(t => t.coaching?.overall_score ?? null);
+    const stabilities = safeSeries(t => {
+      const f0 = t.pitch?.f0_mean_hz;
+      const std = t.pitch?.f0_stability_std_hz;
+      if (!f0 || !std) return null;
+      return Math.round(Math.abs(1200 * Math.log2((f0 + std) / f0)));
+    });
+    const vibratos   = safeSeries(t => {
+      const frac = t.vibrato?.phrase_fraction;
+      return frac != null ? Math.round(frac * 100) : null;
+    });
+    const dtws       = safeSeries(t => {
+      const d = t.reference_comparison?.mean_deviation_cents;
+      return d != null && !isNaN(d) ? Math.round(d) : null;
+    });
+
+    drawProgressChart('chart-score',     takeNums, scores,      '#6c8cff', null, false);
+    drawProgressChart('chart-stability', takeNums, stabilities, '#ff6c8c', '¢',  true);
+    drawProgressChart('chart-vibrato',   takeNums, vibratos,    '#4cda7c', '%',  false);
+    drawProgressChart('chart-dtw',       takeNums, dtws,        '#ffaa33', '¢',  true);
+
+    renderTakesList(takes, name);
+  } catch (e) { console.warn('Progress load error', e); }
+}
+
+function drawProgressChart(canvasId, labels, data, color, unit, lowerBetter) {
+  const canvas = document.getElementById(canvasId);
+  if (progressCharts[canvasId]) { progressCharts[canvasId].destroy(); }
+  const validData = data.filter(v => v != null);
+  if (validData.length === 0) { canvas.style.opacity = '0.3'; return; }
+  canvas.style.opacity = '1';
+
+  // Point colours: green if improving, red if regressing
+  const pointColors = data.map((v, i) => {
+    if (i === 0 || v == null) return color;
+    const prev = data.slice(0, i).reverse().find(x => x != null);
+    if (prev == null) return color;
+    const better = lowerBetter ? v < prev : v > prev;
+    return better ? '#4cda7c' : '#ff6c8c';
+  });
+
+  progressCharts[canvasId] = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        borderColor: color,
+        backgroundColor: color + '22',
+        pointBackgroundColor: pointColors,
+        pointRadius: 5,
+        tension: 0.3,
+        fill: true,
+        spanGaps: true,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#888899', font: { size: 10 } }, grid: { color: '#2a2a3a' } },
+        y: {
+          ticks: { color: '#888899', font: { size: 10 },
+                   callback: v => unit ? `${v}${unit}` : v },
+          grid: { color: '#2a2a3a' }
+        }
+      }
+    }
+  });
+}
+
+function renderTakesList(takes, songId) {
+  const el = document.getElementById('takes-list');
+  if (!takes.length) { el.innerHTML = '<div style="color:var(--dim);font-size:0.82rem">No takes yet.</div>'; return; }
+  el.innerHTML = takes.map((t, i) => {
+    const score = t.coaching?.overall_score;
+    const scoreClass = score >= 70 ? 'high' : score >= 45 ? 'mid' : 'low';
+    const note = t.pitch?.f0_mean_hz ? hzToNote(t.pitch.f0_mean_hz).split(' ')[0] : null;
+    const meta = [
+      note ? `key ~${note}` : null,
+      t.clip_duration_s ? `${t.clip_duration_s.toFixed(1)}s` : null,
+      t.n_phrases ? `${t.n_phrases} phrases` : null,
+    ].filter(Boolean).join(' · ');
+    return `<div class="take-row">
+      <span class="take-num">Take ${i+1}</span>
+      <span class="take-score score-badge ${scoreClass}">${score != null ? score : '—'}</span>
+      <span class="take-meta">${meta}</span>
+      <button class="take-del danger" onclick="deleteTake('${songId}', ${i+1})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+async function deleteTake(songId, takeN) {
+  if (!confirm(`Delete Take ${takeN} of "${songId}"?`)) return;
+  await fetch(API + `/sessions/${encodeURIComponent(songId)}/${takeN}`, { method: 'DELETE' });
+  loadProgressForSong(songId);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Init
+// ══════════════════════════════════════════════════════════════════════
+checkHealth();
+show('screen-upload');
+</script>
+</body>
+</html>
