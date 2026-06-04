@@ -1,38 +1,16 @@
-# VocalCoach — pinned dependencies (reproducible environment)
-# Python 3.11+ recommended. Install: pip install -r requirements.txt
-
-# ── Core ML ──────────────────────────────────────────────────────────────────
 torch==2.12.0
 torchaudio==2.11.0
 numpy==2.4.4
 scipy==1.17.1
-
-# ── Audio / features ─────────────────────────────────────────────────────────
 librosa==0.11.0
 soundfile==0.13.1
-
-# ── Eval / metrics ───────────────────────────────────────────────────────────
 scikit-learn==1.8.0
-
-# ── Demo server (vocalcoach/api.py) ──────────────────────────────────────────
 fastapi==0.136.1
 uvicorn==0.44.0
 python-multipart==0.0.20
-
-# ── Training utilities ───────────────────────────────────────────────────────
+gradio
+spaces
 tqdm==4.67.3
 tensorboard==2.20.0
-
-# ── Weights / data download (scripts/download_data.py) ───────────────────────
 huggingface-hub==1.14.0
-
-# ── Slides / diagrams (scripts/make_demo_slides.py) ──────────────────────────
 matplotlib==3.10.8
-
-# Notes:
-# - RMVPE (pitch-label extraction) is NOT pip-installable and is only needed to
-#   RE-EXTRACT training features from raw audio. The demo, evaluation, and
-#   pre-extracted data do not require it. Install separately if re-extracting:
-#   https://github.com/yxlllc/RMVPE
-# - torchview (optional) renders the auto-generated architecture graph; not
-#   required for the demo. pip install torchview

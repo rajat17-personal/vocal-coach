@@ -17,7 +17,7 @@ RUN mkdir -p vocalcoach_sessions && chmod 777 vocalcoach_sessions
 
 # Actual checkpoint filenames in ckpts/
 ENV VOCALCOACH_CHECKPOINT=ckpts/spectilt_tech_vocalset_probe.pth
-ENV VOCALCOACH_GTSINGER_CHECKPOINT=ckpts/spectilt_tech_gtsinger_probe.pth
+# ENV VOCALCOACH_GTSINGER_CHECKPOINT=ckpts/spectilt_tech_gtsinger_probe.pths
 ENV VOCALCOACH_QUALITY_CHECKPOINT=ckpts/spectilt_quality_v4_lightrank_m0.005.pth
 ENV VOCALCOACH_NOTE_CHECKPOINT=ckpts/spectilt_note_finetune.pth
 ENV VOCALCOACH_PHRASE_GAP_MS=500
