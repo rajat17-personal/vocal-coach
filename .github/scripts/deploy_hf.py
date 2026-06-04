@@ -19,7 +19,7 @@ if not HF_TOKEN or not HF_SPACE_ID:
 api = HfApi(token=HF_TOKEN)
 
 # Create the space if it doesn't exist yet
-api.create_repo(repo_id=HF_SPACE_ID, repo_type="space", exist_ok=True)
+api.create_repo(repo_id=HF_SPACE_ID, repo_type="space", space_sdk="docker", exist_ok=True)
 print(f"Space: https://huggingface.co/spaces/{HF_SPACE_ID}")
 
 # Prepend HF Spaces YAML front-matter to the project README so HF renders it
