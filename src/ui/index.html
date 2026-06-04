@@ -168,10 +168,18 @@
 
   /* Canvas spectrograms */
   canvas.spectrogram {
-    width: 100%; display: block;
-    image-rendering: pixelated; image-rendering: crisp-edges;
+    display: block;
+    /* Smooth interpolation (not pixel-art): the JS draws each spectrogram at a
+       crisp DPR-scaled size, so we want clean upscaling, not blocky edges. */
+    image-rendering: auto;
   }
-  /* Piano-roll uses vector drawing + text — disable pixel-art scaling */
+  /* Horizontal scroll for the spectrogram rows — drawn wider than the panel on
+     long clips so columns stay legible, then scroll instead of squashing. */
+  .scroll-x { overflow-x: auto; width: 100%; position: relative; }
+  .scroll-x::-webkit-scrollbar { height: 8px; }
+  .scroll-x::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  /* Waveform stays full-width (no scroll); keep crisp upscaling. */
+  #waveform-canvas   { width: 100%; image-rendering: auto; }
   #piano-roll-canvas { image-rendering: auto; }
   #waveform-canvas   { height: 100px; }
   #mel-canvas        { height: 160px; }
@@ -460,21 +468,25 @@
       </div>
     </div>
 
-    <!-- Log-Mel Spectrogram -->
-    <div class="panel">
+    <!-- Log-Mel Spectrogram (full-width row, scrolls horizontally for long clips) -->
+    <div class="panel span-2">
       <h2>Log-Mel Spectrogram (40 bands)</h2>
-      <div class="canvas-wrap" id="wrap-mel">
-        <canvas id="mel-canvas" class="spectrogram"></canvas>
-        <div class="playback-cursor" id="cur-mel"></div>
+      <div class="scroll-x" id="wrap-mel-scroll">
+        <div class="canvas-wrap" id="wrap-mel">
+          <canvas id="mel-canvas" class="spectrogram"></canvas>
+          <div class="playback-cursor" id="cur-mel"></div>
+        </div>
       </div>
     </div>
 
-    <!-- Pitch Posteriorgram -->
-    <div class="panel">
+    <!-- Pitch Posteriorgram (full-width row below the mel) -->
+    <div class="panel span-2">
       <h2>Pitch Posteriorgram (360 bins)</h2>
-      <div class="canvas-wrap" id="wrap-pitch-post">
-        <canvas id="pitch-post-canvas" class="spectrogram"></canvas>
-        <div class="playback-cursor" id="cur-pitch-post"></div>
+      <div class="scroll-x" id="wrap-pitch-post-scroll">
+        <div class="canvas-wrap" id="wrap-pitch-post">
+          <canvas id="pitch-post-canvas" class="spectrogram"></canvas>
+          <div class="playback-cursor" id="cur-pitch-post"></div>
+        </div>
       </div>
     </div>
 
@@ -1032,25 +1044,27 @@ async function fetchAndDrawArrays(which = 'user') {
 // transport's timeupdate/seek so all visuals stay locked to the audio clock.
 function moveAllCursors(frac) {
   frac = Math.max(0, Math.min(1, frac || 0));
-  ['cur-waveform', 'cur-mel', 'cur-pitch-post'].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const wrap = el.parentElement;
-    el.style.left = (frac * wrap.offsetWidth) + 'px';
-  });
-  // Piano-roll cursor over the (possibly wide) canvas; keep playhead in view.
-  const prCur = document.getElementById('cur-piano-roll');
-  const prCanvas = document.getElementById('piano-roll-canvas');
-  if (prCur && prCanvas) {
-    const x = frac * prCanvas.offsetWidth;
-    prCur.style.left = x + 'px';
-    const scroll = document.getElementById('piano-roll-scroll');
-    if (scroll) {
-      const margin = scroll.clientWidth * 0.5;
-      if (x < scroll.scrollLeft || x > scroll.scrollLeft + scroll.clientWidth)
-        scroll.scrollLeft = Math.max(0, x - margin);
-    }
-  }
+  // Waveform: full-width, no scroll → position across the wrap.
+  const wf = document.getElementById('cur-waveform');
+  if (wf) wf.style.left = (frac * wf.parentElement.offsetWidth) + 'px';
+  // Mel / posteriorgram / piano-roll: canvas may be wider than its scroll
+  // container → position over the canvas and keep the playhead in view.
+  [['cur-mel', 'mel-canvas', 'wrap-mel-scroll'],
+   ['cur-pitch-post', 'pitch-post-canvas', 'wrap-pitch-post-scroll'],
+   ['cur-piano-roll', 'piano-roll-canvas', 'piano-roll-scroll']].forEach(
+    ([curId, canvasId, scrollId]) => {
+      const cur = document.getElementById(curId);
+      const canvas = document.getElementById(canvasId);
+      if (!cur || !canvas) return;
+      const x = frac * canvas.offsetWidth;
+      cur.style.left = x + 'px';
+      const scroll = document.getElementById(scrollId);
+      if (scroll) {
+        const margin = scroll.clientWidth * 0.5;
+        if (x < scroll.scrollLeft || x > scroll.scrollLeft + scroll.clientWidth)
+          scroll.scrollLeft = Math.max(0, x - margin);
+      }
+    });
 }
 
 // Toggle the .playing class (cursor visibility) on all canvas wraps.
@@ -1061,74 +1075,86 @@ function setCursorsPlaying(on) {
 
 // ── Mel spectrogram — viridis pixel canvas ────────────────────────────
 // mel is (40, T) row-major: mel[b*T + t], same layout as librosa mel output
+// Crisp display width (CSS px) for a T-frame time series: ≥ MIN_PX_PER_FRAME per
+// frame so detail isn't squashed, but at least the container width. The canvas is
+// drawn into an offscreen at native frame resolution, then blitted at this width
+// (smooth scaling), and the wrapper scrolls. Returns the chosen CSS width.
+function displayWidthForT(scrollWrapId, T) {
+  // ≥ this many CSS px per frame so columns aren't squashed on long clips, but at
+  // least fill the container on short ones. Modest (1.5) — crispness comes from the
+  // DPR-scaled smooth upscale in blitField; this just controls horizontal density.
+  const MIN_PX_PER_FRAME = 1.5;    // 10ms frame → ~150px/sec
+  const MAX_W = 12000;             // cap so very long clips don't blow up the canvas
+  const wrap = document.getElementById(scrollWrapId);
+  const containerW = (wrap && wrap.clientWidth) || 800;
+  return Math.min(MAX_W, Math.max(containerW, Math.round(T * MIN_PX_PER_FRAME)));
+}
+
+// Render a (rows × T) field as a viridis image, scaled up to a crisp display size.
+// Draws at native resolution into a buffer canvas, then blits with smoothing OFF
+// horizontally is undesirable for spectrograms — we WANT smooth interpolation so
+// columns don't look blocky. devicePixelRatio keeps it sharp on hi-dpi screens.
+function blitField(canvas, scrollWrapId, rows, T, cssH, pixelAt) {
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = displayWidthForT(scrollWrapId, T);
+  // Offscreen at native data resolution
+  const buf = document.createElement('canvas');
+  buf.width = T; buf.height = rows;
+  const bctx = buf.getContext('2d');
+  const img = bctx.createImageData(T, rows);
+  for (let r = 0; r < rows; r++)
+    for (let t = 0; t < T; t++) {
+      const [cr, cg, cb] = pixelAt(r, t);
+      const idx = (r * T + t) * 4;
+      img.data[idx] = cr; img.data[idx+1] = cg; img.data[idx+2] = cb; img.data[idx+3] = 255;
+    }
+  bctx.putImageData(img, 0, 0);
+  // Target canvas at DPR-scaled size, smooth upscale from the buffer
+  canvas.style.width = cssW + 'px';
+  canvas.style.height = cssH + 'px';
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(buf, 0, 0, T, rows, 0, 0, canvas.width, canvas.height);
+}
+
 function drawMelCanvas(mel, T) {
   const N_BANDS = 40;
   const canvas = document.getElementById('mel-canvas');
-  canvas.width = T; canvas.height = N_BANDS;
-  const ctx = canvas.getContext('2d');
-  const img = ctx.createImageData(T, N_BANDS);
-
-  // Percentile-based normalisation for better contrast:
-  // use 5th/95th percentile instead of min/max so outliers don't crush the range
+  // Percentile-based normalisation (5th/95th) so outliers don't crush contrast.
   const sorted = Float32Array.from(mel).sort();
   const mn = sorted[Math.floor(sorted.length * 0.05)];
   const mx = sorted[Math.floor(sorted.length * 0.95)];
   const range = mx - mn || 1;
-
-  for (let b = 0; b < N_BANDS; b++) {
-    const row = N_BANDS - 1 - b; // flip: low freq at bottom
-    for (let t = 0; t < T; t++) {
-      const val = Math.max(0, Math.min(1, (mel[b * T + t] - mn) / range));
-      const [r, g, bl] = viridis(val);
-      const idx = (row * T + t) * 4;
-      img.data[idx] = r; img.data[idx+1] = g; img.data[idx+2] = bl; img.data[idx+3] = 255;
-    }
-  }
-  ctx.putImageData(img, 0, 0);
+  // pixelAt receives (row, t) with row 0 at the TOP. Flip so low freq sits at the
+  // bottom: top row (0) → highest band (N_BANDS-1).
+  blitField(canvas, 'wrap-mel-scroll', N_BANDS, T, 160, (row, t) => {
+    const band = N_BANDS - 1 - row;
+    const val = Math.max(0, Math.min(1, (mel[band * T + t] - mn) / range));
+    return viridis(val);
+  });
 }
 
 // ── Pitch posteriorgram — viridis pixel canvas ────────────────────────
-// Mirrors NanoPitch drawPitch(): bins 60-240, 120 display rows, *2 contrast.
+// Mirrors NanoPitch drawPitch(): bins 60-240, *2 contrast.
 // pit is (T*360) row-major: pit[t*360 + bin].
-// Temporal box-blur (radius 2) applied before rendering for a smoother look.
 function drawPitchPostCanvas(pit, T) {
   const N_BINS = 360;
   const BIN_START = 60, BIN_END = 240;
-  const N_SHOW = BIN_END - BIN_START;
-  const H_DISPLAY = 120;
+  const N_SHOW = BIN_END - BIN_START;   // 180 native bins → crisp pitch ridge
 
-  // Box-blur across time (radius 2) on the displayed bin range only
-  const BLUR_R = 2;
-  const blurred = new Float32Array(T * N_SHOW);
-  for (let b = 0; b < N_SHOW; b++) {
-    for (let t = 0; t < T; t++) {
-      let sum = 0, cnt = 0;
-      for (let dt = -BLUR_R; dt <= BLUR_R; dt++) {
-        const tt = t + dt;
-        if (tt < 0 || tt >= T) continue;
-        sum += pit[tt * N_BINS + (BIN_END - 1 - b)];
-        cnt++;
-      }
-      blurred[b * T + t] = sum / cnt;
-    }
-  }
-
+  // Render directly at native bin resolution (no temporal box-blur — it smeared
+  // the thin pitch ridge; blitField's interpolation already softens enough). Each
+  // pixel reads the raw posterior, so the ridge stays sharp.
   const canvas = document.getElementById('pitch-post-canvas');
-  canvas.width = T; canvas.height = H_DISPLAY;
-  const ctx = canvas.getContext('2d');
-  const img = ctx.createImageData(T, H_DISPLAY);
-
-  for (let row = 0; row < H_DISPLAY; row++) {
-    const b = Math.floor(row * N_SHOW / H_DISPLAY);
-    const flippedRow = H_DISPLAY - 1 - row;
-    for (let t = 0; t < T; t++) {
-      const val = blurred[b * T + t];
-      const [r, g, bl] = viridis(Math.min(1, val * 2));
-      const idx = (flippedRow * T + t) * 4;
-      img.data[idx] = r; img.data[idx+1] = g; img.data[idx+2] = bl; img.data[idx+3] = 255;
-    }
-  }
-  ctx.putImageData(img, 0, 0);
+  blitField(canvas, 'wrap-pitch-post-scroll', N_SHOW, T, 160, (row, t) => {
+    // row 0 at top → highest shown bin (BIN_END-1); descend toward BIN_START.
+    const bin = BIN_END - 1 - row;
+    const val = pit[t * N_BINS + bin];
+    return viridis(Math.min(1, val * 2));
+  });
 }
 
 // ── Waveform + VAD — mirrors NanoPitch drawWaveform() exactly ────────
@@ -1136,12 +1162,21 @@ function drawPitchPostCanvas(pit, T) {
 // Layer 2: F0 pitch contour as blue amplitude-like envelope (log-scale Y)
 // 4px per frame to match NanoPitch's HISTORY*4 pixel width convention
 function drawWaveformFromVAD(vad, f0, T) {
-  const PX = 4;
   const canvas = document.getElementById('waveform-canvas');
-  const W = T * PX;
-  const H = 60;
-  canvas.width = W; canvas.height = H;
+  // Render at the CONTAINER width × devicePixelRatio so the envelope curve is
+  // drawn at full screen resolution (was T×4 px then CSS-stretched → blurry).
+  const wrap = canvas.parentElement;
+  const cssW = (wrap && wrap.clientWidth) || 800;
+  const H = 100;                                   // matches the CSS height
+  const dpr = window.devicePixelRatio || 1;
+  canvas.style.width = '100%';
+  canvas.style.height = H + 'px';
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(H * dpr);
   const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);          // draw in CSS-px coordinates
+  const W = cssW;                                   // logical width
+  const xAt = t => (t / (T - 1 || 1)) * W;          // map frame → x across full width
   ctx.fillStyle = '#0f0f14';
   ctx.fillRect(0, 0, W, H);
 
@@ -1151,7 +1186,7 @@ function drawWaveformFromVAD(vad, f0, T) {
     const v = vad[t] || 0;
     if (v > 0.3) {
       ctx.fillStyle = `rgba(76,218,124,${(v * 0.08).toFixed(3)})`;
-      ctx.fillRect(t * PX, 0, PX, H);
+      ctx.fillRect(xAt(t), 0, Math.max(1, W / T) + 0.5, H);
     }
   }
 
@@ -1188,11 +1223,22 @@ function drawWaveformFromVAD(vad, f0, T) {
   grad.addColorStop(1, 'rgba(108,140,255,0.85)');
   ctx.fillStyle = grad;
   ctx.beginPath();
-  ctx.moveTo(0, mid - env[0]);
-  for (let t = 0; t < T; t++) ctx.lineTo(t * PX + PX / 2, mid - env[t]);
-  for (let t = T - 1; t >= 0; t--) ctx.lineTo(t * PX + PX / 2, mid + env[t]);
+  ctx.moveTo(xAt(0), mid - env[0]);
+  for (let t = 0; t < T; t++) ctx.lineTo(xAt(t), mid - env[t]);
+  for (let t = T - 1; t >= 0; t--) ctx.lineTo(xAt(t), mid + env[t]);
   ctx.closePath();
   ctx.fill();
+  // Crisp outline on the envelope edge (anti-aliased vector stroke at full DPR).
+  ctx.strokeStyle = 'rgba(108,140,255,0.9)';
+  ctx.lineWidth = 1; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(xAt(0), mid - env[0]);
+  for (let t = 1; t < T; t++) ctx.lineTo(xAt(t), mid - env[t]);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(xAt(0), mid + env[0]);
+  for (let t = 1; t < T; t++) ctx.lineTo(xAt(t), mid + env[t]);
+  ctx.stroke();
   // Static centre line (the "running line" baseline)
   ctx.strokeStyle = 'rgba(108,140,255,0.35)';
   ctx.lineWidth = 1;
@@ -1245,8 +1291,7 @@ function renderWaveformFromPhrases(report) {
   // Time axis labels
   ctx.fillStyle = '#444455'; ctx.font = '9px monospace';
   for (let s = 0; s <= dur; s += Math.max(1, Math.round(dur / 8))) {
-    const x = (s / dur) * W;
-    ctx.fillText(s + 's', x + 2, H - 3);
+    ctx.fillText(s + 's', (s / dur) * W + 2, H - 3);
   }
 }
 
@@ -1267,7 +1312,11 @@ function renderPianoRoll(report) {
   const noteDrivenPxSec = nNotes > 1 ? (nNotes * MIN_PX_PER_NOTE) / dur0 : 14;
   const pxPerSec = Math.min(80, Math.max(18, noteDrivenPxSec));  // clamp 18–80
   const containerW = (scroll && scroll.clientWidth) || canvas.offsetWidth || 800;
-  const W = Math.max(containerW, Math.round(dur0 * pxPerSec));
+  // PAD_R reserves space on the right so the last note's block + label aren't
+  // clipped at the canvas edge (notes ending at clip duration would otherwise sit
+  // flush against W). Fixed px → negligible on long clips, fixes short ones.
+  const PAD_L = 4, PAD_R = 22;
+  const W = Math.max(containerW, Math.round(dur0 * pxPerSec) + PAD_L + PAD_R);
   canvas.style.width = W + 'px';
   const H = 140;
   canvas.width  = W * dpr;
@@ -1280,6 +1329,10 @@ function renderPianoRoll(report) {
 
   const dur = report.clip_duration_s;
   const phrases = report.phrases || [];
+  // Map a time (s) into the padded content area so nothing renders flush against
+  // the canvas edges (prevents last-note / last-label clipping on short clips).
+  const contentW = W - PAD_L - PAD_R;
+  const tx = s => PAD_L + (s / (dur || 1)) * contentW;
 
   // ── Preferred path: REAL notes from the trained note head (report.notes) ──
   // Each note has {onset_s, offset_s, midi, note}. When present, render exact
@@ -1314,8 +1367,8 @@ function renderPianoRoll(report) {
     }
     // Note blocks
     realNotes.forEach(n => {
-      const x1 = Math.round((n.onset_s / dur) * W);
-      const x2 = Math.max(x1 + 3, Math.round((n.offset_s / dur) * W));
+      const x1 = Math.round(tx(n.onset_s));
+      const x2 = Math.max(x1 + 3, Math.round(tx(n.offset_s)));
       const y  = midiToY(n.midi);
       const col = noteColor(n);
       ctx.fillStyle = col + 'cc';      // technique-tinted block
@@ -1336,7 +1389,7 @@ function renderPianoRoll(report) {
     // Time axis
     ctx.fillStyle = '#555566'; ctx.font = '9px monospace';
     const step = Math.max(1, Math.round(dur / 8));
-    for (let s = 0; s <= dur; s += step) ctx.fillText(s + 's', (s / dur) * W + 2, H - 2);
+    for (let s = 0; s <= dur; s += step) ctx.fillText(s + 's', tx(s) + 2, H - 2);
     return;
   }
 
@@ -1376,8 +1429,8 @@ function renderPianoRoll(report) {
   // Note blocks
   const TECH_COLORS = { vibrato:'#6c8cff', breathy:'#2bd1c4', falsetto:'#ff6c8c', belt:'#ffaa33', straight:'#4cda7c' };
   voiced.forEach(p => {
-    const x1 = Math.round((p.start_s / dur) * W);
-    const x2 = Math.max(x1 + 3, Math.round((p.end_s / dur) * W));
+    const x1 = Math.round(tx(p.start_s));
+    const x2 = Math.max(x1 + 3, Math.round(tx(p.end_s)));
     const y  = hzToY(p.f0_mean_hz);
 
     // Block height: stability-based (±half semitone = ±50¢)
@@ -1424,7 +1477,7 @@ function renderPianoRoll(report) {
   ctx.fillStyle = '#555566'; ctx.font = '9px monospace';
   const step = Math.max(1, Math.round(dur / 8));
   for (let s = 0; s <= dur; s += step) {
-    ctx.fillText(s + 's', (s / dur) * W + 2, H - 2);
+    ctx.fillText(s + 's', tx(s) + 2, H - 2);
   }
 }
 
