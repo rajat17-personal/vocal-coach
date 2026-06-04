@@ -18,7 +18,7 @@ GTSinger) fused at inference so all five classes are covered.
 ```bash
 git clone <THIS-REPO-URL>
 cd VocalCoach
-python -m venv .venv && source .venv/bin/activate     # Python 3.11+
+# Python 3.11+
 pip install -r requirements.txt
 ```
 
@@ -145,13 +145,7 @@ VocalCoach trains on **public datasets** (we link them; we do not redistribute):
 | Technique (falsetto) | GTSinger | https://huggingface.co/datasets/AaronZ345/GTSinger |
 | Note labels | Annotated VocalSet | (derived from VocalSet) |
 | OOD eval | Vocadito | https://zenodo.org/records/5557945 |
-| Quality | SingMOS-Pro / ccmusic / PopBuTFy | (see report) |
-
-Download the pre-extracted pitch/VAD features + eval data:
-
-```bash
-python scripts/download_data.py --output-dir data
-```
+| Quality | SingMOS-Pro / ccmusic / PopBuTFy | https://huggingface.co/datasets/TangRain/SingMOS, https://huggingface.co/datasets/ccmusic-database/acapella, https://github.com/MoonInTheRiver/NeuralSVB |
 
 **Augmentation.** All augmentation is applied **on-the-fly at training time** (the
 stored features are clean): **gain** (random −40→0 dB, for quiet/feeble recordings),
@@ -211,5 +205,4 @@ python vocalcoach/train.py \
     --output-dir vocalcoach/runs/tech_vocalset_probe
 ```
 
-Re-extracting features from raw audio additionally requires RMVPE (not pip; see
-`requirements.txt` notes).
+Re-extracting features from raw audio additionally requires RMVPE.
