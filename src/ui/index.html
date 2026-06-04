@@ -143,6 +143,17 @@
   .score-badge.high { color: var(--good); }
   .score-badge.mid  { color: var(--amber); }
   .score-badge.low  { color: var(--warn); }
+  /* A/B toggle (your take vs reference) */
+  .ab-toggle {
+    display: inline-flex; border: 1px solid var(--border);
+    border-radius: 999px; overflow: hidden; background: var(--surface);
+  }
+  .ab-btn {
+    padding: 0.2rem 0.85rem; font-size: 0.78rem; border: none;
+    border-radius: 0; background: transparent; color: var(--dim);
+  }
+  .ab-btn.active { background: var(--accent); color: #fff; font-weight: 600; }
+  .ab-btn:hover:not(.active) { background: var(--surface2); color: var(--text); }
   .topbar-right { margin-left: auto; display: flex; gap: 0.5rem; }
 
   .analysis-grid {
@@ -174,8 +185,19 @@
     margin-bottom: 0.5rem;
   }
   .audio-player.visible { display: flex; }
-  .audio-player audio { flex: 1; height: 32px; filter: invert(0.9) hue-rotate(200deg); }
-  .audio-player .audio-label { font-size: 0.78rem; color: var(--dim); white-space: nowrap; }
+  .audio-player audio { display: none; }   /* media elements driven by the transport */
+  .transport-btn {
+    width: 34px; height: 34px; border-radius: 50%; padding: 0;
+    background: var(--accent); border: none; color: #fff; font-size: 0.95rem;
+    flex: none; line-height: 1;
+  }
+  .transport-btn:hover:not(:disabled) { background: var(--accent); filter: brightness(1.1); }
+  .transport-seek { flex: 1; accent-color: var(--accent); height: 4px; }
+  .transport-time { font-size: 0.74rem; color: var(--dim); white-space: nowrap;
+                    font-variant-numeric: tabular-nums; }
+  .transport-audible { font-size: 0.72rem; color: var(--accent); white-space: nowrap;
+                       padding: 0.1rem 0.5rem; border: 1px solid var(--border);
+                       border-radius: 999px; }
 
   /* Playback cursor overlay on canvases */
   .canvas-wrap { position: relative; }
@@ -185,6 +207,7 @@
     display: none; z-index: 2;
   }
   .canvas-wrap.playing .playback-cursor { display: block; }
+  #piano-roll-scroll.playing .playback-cursor { display: block; }
 
   /* DTW reference panel */
   .dtw-grid {
@@ -217,7 +240,7 @@
 
   /* Meters row */
   .meters-row {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 0.6rem;
   }
   .meter {
@@ -225,7 +248,8 @@
     padding: 0.6rem 0.5rem; text-align: center;
   }
   .meter .m-value { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .meter .m-label { font-size: 0.7rem; color: var(--dim); margin-top: 0.2rem; }
+  .meter .m-label { font-size: 0.7rem; color: var(--dim); margin-top: 0.2rem; font-weight: 600; }
+  .meter .m-desc { font-size: 0.62rem; color: var(--dim); margin-top: 0.3rem; line-height: 1.3; opacity: 0.8; }
   .meter.m-green .m-value { color: var(--green); }
   .meter.m-blue  .m-value { color: var(--accent); }
   .meter.m-pink  .m-value { color: var(--accent2); }
@@ -359,10 +383,10 @@
     <!-- Phrasing mode -->
     <div class="field-row">
       <label>Phrasing <span style="color:var(--dim)">(how lines are grouped)</span></label>
-      <select id="phrasing-mode" style="width:100%; padding:0.5rem; background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:6px">
-        <option value="default">Default — balanced</option>
-        <option value="ballad">Ballad — slow, long lines</option>
-        <option value="uptempo">Up-tempo — fast, short phrases</option>
+      <select id="phrasing-mode" style="width:100%; padding:0.5rem; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:6px">
+        <option value="default" style="background:var(--surface);color:var(--text)">Default — balanced</option>
+        <option value="ballad" style="background:var(--surface);color:var(--text)">Ballad — slow, long lines</option>
+        <option value="uptempo" style="background:var(--surface);color:var(--text)">Up-tempo — fast, short phrases</option>
       </select>
     </div>
 
@@ -400,6 +424,12 @@
     <span class="song-title" id="analysis-song-name">—</span>
     <span class="take-badge" id="take-badge">Take 1</span>
     <span class="score-badge" id="score-badge">—</span>
+    <!-- A/B toggle: your take vs the reference recording (shown only when a
+         reference was uploaded). Re-renders the same panels with either report. -->
+    <div class="ab-toggle" id="ab-toggle" style="display:none">
+      <button id="ab-user" class="ab-btn active" onclick="setView('user')">Your take</button>
+      <button id="ab-ref"  class="ab-btn"        onclick="setView('reference')">Reference</button>
+    </div>
     <div class="topbar-right">
       <button id="btn-show-progress" onclick="showProgress()" style="display:none">Progress →</button>
     </div>
@@ -412,9 +442,17 @@
     <!-- Audio playback + Waveform + VAD -->
     <div class="panel span-2">
       <h2>Waveform &amp; Voice Activity</h2>
+      <!-- Synced dual transport: both tracks scrub on one timeline; the A/B
+           toggle (top bar) chooses which is audible. Reference controls appear
+           only when a reference was uploaded. -->
       <div class="audio-player" id="audio-player">
-        <span class="audio-label">▶ Playback</span>
-        <audio id="audio-el" controls></audio>
+        <button id="transport-play" class="transport-btn" onclick="transportToggle()">▶</button>
+        <input type="range" id="transport-seek" class="transport-seek" min="0" max="1000" value="0">
+        <span id="transport-time" class="transport-time">0:00 / 0:00</span>
+        <span id="transport-audible" class="transport-audible">Hearing: Your take</span>
+        <!-- Hidden media elements (one per track), driven by the transport above -->
+        <audio id="audio-user" preload="auto"></audio>
+        <audio id="audio-ref"  preload="auto"></audio>
       </div>
       <div class="canvas-wrap" id="wrap-waveform">
         <canvas id="waveform-canvas" class="spectrogram"></canvas>
@@ -443,13 +481,14 @@
     <!-- Piano-roll pitch timeline -->
     <div class="panel span-2">
       <h2>Note Timeline — pitch over time</h2>
-      <div id="piano-roll-scroll" style="overflow-x:auto; width:100%">
+      <div id="piano-roll-scroll" style="overflow-x:auto; width:100%; position:relative">
         <canvas id="piano-roll-canvas" class="spectrogram"></canvas>
+        <div class="playback-cursor" id="cur-piano-roll"></div>
       </div>
       <div style="font-size:0.72rem; color:var(--dim); margin-top:0.3rem">
+        Note colour = dominant technique of its phrase:&nbsp;
         <span style="color:#6c8cff">●</span> vibrato &nbsp;
-        <span style="color:#88aaff">●</span> breathy &nbsp;
-        <span style="color:#ff6c8c">●</span> falsetto &nbsp;
+        <span style="color:#2bd1c4">●</span> breathy &nbsp;
         <span style="color:#ffaa33">●</span> belt &nbsp;
         <span style="color:#4cda7c">●</span> straight / none
       </div>
@@ -489,33 +528,30 @@
     <div class="panel span-2">
       <h2>Key Metrics</h2>
       <div class="meters-row">
-        <div class="meter m-blue">
-          <div class="m-value" id="m-note">—</div>
-          <div class="m-label">Mean Note</div>
-        </div>
         <div class="meter m-green">
           <div class="m-value" id="m-stability">—</div>
           <div class="m-label">Pitch Stability</div>
+          <div class="m-desc">How steady the pitch is within notes · lower is better</div>
         </div>
         <div class="meter m-blue">
           <div class="m-value" id="m-vibrato">—</div>
           <div class="m-label">Vibrato Rate</div>
+          <div class="m-desc">Pitch-oscillation speed · 5–7 Hz is typical for trained singing</div>
         </div>
         <div class="meter m-green">
           <div class="m-value" id="m-vib-depth">—</div>
           <div class="m-label">Vibrato Depth</div>
-        </div>
-        <div class="meter">
-          <div class="m-value" id="m-hnr">—</div>
-          <div class="m-label">HNR (dB)</div>
+          <div class="m-desc">Width of the vibrato swing · moderate (≈50–150¢) is expressive</div>
         </div>
         <div class="meter">
           <div class="m-value" id="m-phrases">—</div>
           <div class="m-label">Phrases</div>
+          <div class="m-desc">Sung lines detected (split on breath/silence) · neither better nor worse</div>
         </div>
         <div class="meter m-pink">
           <div class="m-value" id="m-dtw">—</div>
           <div class="m-label">Ref Deviation</div>
+          <div class="m-desc">Avg. pitch distance from the reference · lower is closer to the target</div>
         </div>
       </div>
     </div>
@@ -589,6 +625,7 @@ let progressCharts = {};
 let _abortCtrl  = null;  // AbortController for in-flight analysis
 let _arrays     = null;  // { mel, pit, vad, f0, T } decoded from /analyse/arrays
 let _clipDur    = 0;     // total clip duration in seconds
+let _viewMode   = 'user'; // 'user' | 'reference' — which take the panels show
 
 // ══════════════════════════════════════════════════════════════════════
 // Screen navigation
@@ -736,50 +773,181 @@ async function runAnalysis() {
 // Render Analysis Dashboard
 // ══════════════════════════════════════════════════════════════════════
 function renderAnalysis(data) {
-  const report = data.report;
+  // Reset to the user's take and wire the A/B toggle (visible only when the
+  // backend returned a full report for an uploaded reference recording).
+  _viewMode = 'user';
+  const hasRef = !!(data.report && data.report.reference_report);
+  document.getElementById('ab-toggle').style.display = hasRef ? 'inline-flex' : 'none';
+  document.getElementById('ab-user').classList.add('active');
+  document.getElementById('ab-ref').classList.remove('active');
+  // Wire both audio tracks (user + reference) into the synced transport once.
+  setupTransport();
+  renderCurrentView();
+}
+
+// Switch between the user's take and the reference, re-rendering all panels.
+function setView(mode) {
+  if (mode === _viewMode) return;
+  _viewMode = mode;
+  document.getElementById('ab-user').classList.toggle('active', mode === 'user');
+  document.getElementById('ab-ref').classList.toggle('active', mode === 'reference');
+  renderCurrentView();
+}
+
+// Render every panel from whichever report (_viewMode) is selected. The user
+// take has audio playback + real mel/posteriorgram arrays; the reference take
+// renders from its report only (no uploaded audio, no heavy arrays).
+function renderCurrentView() {
+  const data = currentData;
+  if (!data || !data.report) return;
+  const isRef = _viewMode === 'reference';
+  const report = isRef ? data.report.reference_report : data.report;
   const coaching = report.coaching || {};
 
   // Title + score
-  document.getElementById('analysis-song-name').textContent = currentSong;
-  document.getElementById('take-badge').textContent = `Take ${data.take_number}`;
+  document.getElementById('analysis-song-name').textContent =
+    currentSong + (isRef ? ' — Reference' : '');
+  document.getElementById('take-badge').textContent =
+    isRef ? 'Reference' : `Take ${data.take_number}`;
   const score = coaching.overall_score;
   const sb = document.getElementById('score-badge');
   sb.textContent = score != null ? `${score}/100` : '—';
   sb.className = 'score-badge ' + (score >= 70 ? 'high' : score >= 45 ? 'mid' : 'low');
 
-  // Progress diff banner
-  renderDiff(data.progress_diff || {});
+  // Progress diff + DTW reference panel are user-take only (the reference has
+  // no prior takes and isn't compared against itself).
+  renderDiff(isRef ? {} : (data.progress_diff || {}));
+  renderReferencePanel(isRef ? null : report.reference_comparison);
 
-  // Audio player — wire uploaded file to player
-  renderAudioPlayer();
+  // Synced transport stays visible in BOTH views (both tracks are persisted).
+  // Switching the A/B view just changes which track is audible.
+  const player = document.getElementById('audio-player');
+  if (player) { player.style.display = ''; player.classList.add('visible'); }
+  applyAudibleTrack();
 
-  // Set clip duration for playback cursor sync
-  _clipDur = report.clip_duration_s || 0;
+  // Clip duration comes from the user track's metadata (set in setupTransport);
+  // fall back to the selected report's value until the audio loads.
+  _clipDur = (document.getElementById('audio-user').duration) || report.clip_duration_s || 0;
 
-  // Render phrase-derived visuals immediately, then fetch real arrays
+  // Phrase-derived visuals work from the report alone (both takes).
   renderWaveformFromPhrases(report);
   renderPianoRoll(report);
   renderTechChips(report.technique || {});
   renderMeters(report, coaching);
   renderObservations(coaching.observations || []);
-  renderPhrases(report.phrases || [], coaching.observations || []);
-  renderReferencePanel(report.reference_comparison);
+  // Phrase playback works in both views now (both tracks are persisted); the
+  // transport's audible track follows the A/B selection.
+  const canPlayPhrases = isRef ? _hasRefAudio : true;
+  renderPhrases(report.phrases || [], coaching.observations || [], canPlayPhrases);
 
-  // Fetch and draw real mel + posteriorgram spectrograms
-  fetchAndDrawArrays();
+  // Real mel + posteriorgram + VAD waveform from the persisted-audio endpoint —
+  // for BOTH the user and the reference take.
+  fetchAndDrawArrays(isRef ? 'reference' : 'user');
 }
 
-// ── Audio player ─────────────────────────────────────────────────────
-function renderAudioPlayer() {
-  if (!audioFile) return;
-  const player = document.getElementById('audio-player');
-  const el = document.getElementById('audio-el');
-  // Revoke old URL if any
-  if (el._blobUrl) URL.revokeObjectURL(el._blobUrl);
-  const url = URL.createObjectURL(audioFile);
-  el._blobUrl = url;
-  el.src = url;
-  player.classList.add('visible');
+// ── Dual-audio synced transport ──────────────────────────────────────
+// Both tracks (user + reference) load from persisted server URLs and scrub on a
+// single timeline. One play/pause/seek drives both; the A/B toggle (_viewMode)
+// chooses which is *audible* (the other is muted but stays time-locked, so
+// flipping the toggle hears the other track at the same position).
+let _hasRefAudio = false;
+
+function transportUrls() {
+  // Built from the session response: GET /sessions/{song}/{take}/audio/{which}
+  const d = currentData;
+  if (!d) return { user: null, ref: null };
+  const song = encodeURIComponent(d.song_id || currentSong);
+  const take = d.take_number;
+  const audio = (d.report && d.report.audio) || {};
+  return {
+    user: audio.user ? `${API}/sessions/${song}/${take}/audio/user` : null,
+    ref:  audio.reference ? `${API}/sessions/${song}/${take}/audio/reference` : null,
+  };
+}
+
+// Wire both <audio> srcs once per analysis. Called from renderAnalysis.
+function setupTransport() {
+  const u = document.getElementById('audio-user');
+  const r = document.getElementById('audio-ref');
+  const { user, ref } = transportUrls();
+  _hasRefAudio = !!ref;
+  if (user) u.src = user;
+  if (ref)  r.src = ref; else r.removeAttribute('src');
+  // Reset transport UI
+  const seek = document.getElementById('transport-seek');
+  seek.value = 0;
+  document.getElementById('transport-play').textContent = '▶';
+  // Master clock = the user track (always present); reference follows it.
+  u.onloadedmetadata = () => { _clipDur = u.duration || _clipDur; updateTransportTime(); };
+  u.ontimeupdate = onTransportTick;
+  u.onplay  = () => syncTransportPlayState(true);
+  u.onpause = () => syncTransportPlayState(false);
+  u.onended = () => { syncTransportPlayState(false); seek.value = 0; };
+  seek.oninput = onSeekInput;
+  applyAudibleTrack();
+}
+
+// Mute/unmute so only the selected (_viewMode) track is heard; both keep playing.
+function applyAudibleTrack() {
+  const u = document.getElementById('audio-user');
+  const r = document.getElementById('audio-ref');
+  const hearRef = _viewMode === 'reference' && _hasRefAudio;
+  u.muted = hearRef;
+  r.muted = !hearRef;
+  const label = document.getElementById('transport-audible');
+  if (label) label.textContent = 'Hearing: ' + (hearRef ? 'Reference' : 'Your take');
+}
+
+function transportToggle() {
+  const u = document.getElementById('audio-user');
+  const r = document.getElementById('audio-ref');
+  if (u.paused) {
+    // Align the reference to the user clock, then start both together.
+    if (_hasRefAudio) r.currentTime = u.currentTime;
+    u.play(); if (_hasRefAudio) r.play().catch(() => {});
+  } else {
+    u.pause(); if (_hasRefAudio) r.pause();
+  }
+}
+
+function syncTransportPlayState(playing) {
+  document.getElementById('transport-play').textContent = playing ? '❚❚' : '▶';
+  setCursorsPlaying(playing);
+}
+
+function onSeekInput(e) {
+  const u = document.getElementById('audio-user');
+  const r = document.getElementById('audio-ref');
+  if (!_clipDur) return;
+  const t = (e.target.value / 1000) * _clipDur;
+  u.currentTime = t;
+  if (_hasRefAudio) r.currentTime = Math.min(t, r.duration || t);
+  updateTransportTime();
+  moveAllCursors(t / _clipDur);
+}
+
+function fmtTime(s) {
+  s = Math.max(0, s || 0);
+  return `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+}
+function updateTransportTime() {
+  const u = document.getElementById('audio-user');
+  document.getElementById('transport-time').textContent =
+    `${fmtTime(u.currentTime)} / ${fmtTime(_clipDur)}`;
+}
+
+function onTransportTick() {
+  const u = document.getElementById('audio-user');
+  const r = document.getElementById('audio-ref');
+  // Keep the reference from drifting (>120ms) off the user clock.
+  if (_hasRefAudio && !u.paused && Math.abs((r.currentTime||0) - u.currentTime) > 0.12)
+    r.currentTime = u.currentTime;
+  if (_clipDur) {
+    document.getElementById('transport-seek').value =
+      Math.round((u.currentTime / _clipDur) * 1000);
+    moveAllCursors(u.currentTime / _clipDur);
+  }
+  updateTransportTime();
 }
 
 // ── Viridis colormap (same poly approx as NanoPitch) ─────────────────
@@ -792,13 +960,40 @@ function viridis(t) {
 }
 
 // ── Fetch real spectrograms from /analyse/arrays and draw them ───────
-async function fetchAndDrawArrays() {
-  if (!audioFile) return;
+// Blank the mel + posteriorgram canvases for the reference view — these come
+// from /analyse/arrays (user take only); the reference shows only its
+// phrase-derived waveform + piano-roll.
+function clearArrayCanvases(msg = 'Spectrogram not available') {
+  ['mel-canvas', 'pitch-post-canvas'].forEach(id => {
+    const c = document.getElementById(id);
+    if (!c) return;
+    // Reset the canvas backing-store to a known size; otherwise leftover width/
+    // height from a previous draw makes the placeholder text render tiny.
+    const W = 800, H = 160;
+    c.width = W; c.height = H;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#0f0f14';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#888899';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(msg, W / 2, H / 2);
+  });
+}
+
+// Fetch + draw the mel/posteriorgram/VAD arrays for the selected take. Pulls
+// from the persisted-audio endpoint (works for BOTH user and reference, and
+// after a page reload), keyed by which='user'|'reference'.
+async function fetchAndDrawArrays(which = 'user') {
+  const d = currentData;
+  if (!d) return;
+  const song = encodeURIComponent(d.song_id || currentSong);
+  const take = d.take_number;
+  // Show a loading hint while the server computes the spectrograms.
+  clearArrayCanvases('Computing spectrogram…');
   try {
-    const form = new FormData();
-    form.append('audio', audioFile);
-    const res = await fetch(API + '/analyse/arrays', { method: 'POST', body: form });
-    if (!res.ok) return;
+    const res = await fetch(`${API}/sessions/${song}/${take}/arrays/${which}`);
+    if (!res.ok) { clearArrayCanvases('Spectrogram unavailable'); return; }
     const j = await res.json();
     const T = j.T;
 
@@ -809,6 +1004,10 @@ async function fetchAndDrawArrays() {
       for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
       return new Float32Array(buf);
     }
+
+    // Ignore a stale response if the view was switched while this was in flight.
+    const wantRef = _viewMode === 'reference';
+    if ((which === 'reference') !== wantRef) return;
 
     _arrays = {
       mel: dec(j.mel_db),
@@ -821,47 +1020,43 @@ async function fetchAndDrawArrays() {
     drawMelCanvas(_arrays.mel, T);
     drawPitchPostCanvas(_arrays.pit, T);
     drawWaveformFromVAD(_arrays.vad, _arrays.f0, T);
-    setupPlaybackSync();
+    // Cursors are driven by the synced transport (onTransportTick), not here.
   } catch(e) {
     console.warn('arrays fetch failed', e);
+    clearArrayCanvases('Spectrogram unavailable');
   }
 }
 
-// ── Playback sync: move cursor over canvases as audio plays ──────────
-function setupPlaybackSync() {
-  const audioEl = document.getElementById('audio-el');
-  if (!audioEl || !_arrays) return;
-
-  const cursors = ['cur-waveform', 'cur-mel', 'cur-pitch-post'];
-  const wraps   = ['wrap-waveform', 'wrap-mel', 'wrap-pitch-post'];
-
-  function moveCursors() {
-    if (!_clipDur || audioEl.paused) return;
-    const frac = audioEl.currentTime / _clipDur;
-    cursors.forEach(id => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      const wrap = el.parentElement;
-      el.style.left = (frac * wrap.offsetWidth) + 'px';
-    });
+// ── Cursor positioning (driven by the transport tick) ─────────────────
+// Move every playhead cursor to `frac` ∈ [0,1] of the timeline. Called from the
+// transport's timeupdate/seek so all visuals stay locked to the audio clock.
+function moveAllCursors(frac) {
+  frac = Math.max(0, Math.min(1, frac || 0));
+  ['cur-waveform', 'cur-mel', 'cur-pitch-post'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const wrap = el.parentElement;
+    el.style.left = (frac * wrap.offsetWidth) + 'px';
+  });
+  // Piano-roll cursor over the (possibly wide) canvas; keep playhead in view.
+  const prCur = document.getElementById('cur-piano-roll');
+  const prCanvas = document.getElementById('piano-roll-canvas');
+  if (prCur && prCanvas) {
+    const x = frac * prCanvas.offsetWidth;
+    prCur.style.left = x + 'px';
+    const scroll = document.getElementById('piano-roll-scroll');
+    if (scroll) {
+      const margin = scroll.clientWidth * 0.5;
+      if (x < scroll.scrollLeft || x > scroll.scrollLeft + scroll.clientWidth)
+        scroll.scrollLeft = Math.max(0, x - margin);
+    }
   }
+}
 
-  function onPlay() {
-    wraps.forEach(id => document.getElementById(id)?.classList.add('playing'));
-  }
-  function onPause() {
-    wraps.forEach(id => document.getElementById(id)?.classList.remove('playing'));
-  }
-
-  audioEl.removeEventListener('timeupdate', moveCursors);
-  audioEl.removeEventListener('play',  onPlay);
-  audioEl.removeEventListener('pause', onPause);
-  audioEl.removeEventListener('ended', onPause);
-
-  audioEl.addEventListener('timeupdate', moveCursors);
-  audioEl.addEventListener('play',  onPlay);
-  audioEl.addEventListener('pause', onPause);
-  audioEl.addEventListener('ended', onPause);
+// Toggle the .playing class (cursor visibility) on all canvas wraps.
+function setCursorsPlaying(on) {
+  ['wrap-waveform', 'wrap-mel', 'wrap-pitch-post', 'piano-roll-scroll'].forEach(id =>
+    document.getElementById(id)?.classList.toggle('playing', on));
 }
 
 // ── Mel spectrogram — viridis pixel canvas ────────────────────────────
@@ -1021,7 +1216,7 @@ function renderWaveformFromPhrases(report) {
   ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
 
   const phrases = report.phrases || [];
-  const TECH_COLORS = { vibrato:'#6c8cff', breathy:'#88aaff', falsetto:'#ff6c8c', belt:'#ffaa33' };
+  const TECH_COLORS = { vibrato:'#6c8cff', breathy:'#2bd1c4', falsetto:'#ff6c8c', belt:'#ffaa33', straight:'#4cda7c' };
   phrases.forEach(p => {
     const x1 = (p.start_s / dur) * W;
     const x2 = (p.end_s   / dur) * W;
@@ -1062,11 +1257,17 @@ function renderPianoRoll(report) {
   const canvas = document.getElementById('piano-roll-canvas');
   const scroll = document.getElementById('piano-roll-scroll');
   const dpr = window.devicePixelRatio || 1;
-  // Width: at least the container width, but expand to >=14 px/sec so a long
-  // clip spreads out (scrolls) instead of clumping into the fixed page width.
+  // Width = px/sec × duration, then scroll. Scale px/sec by how DENSE the notes
+  // are so each note has room regardless of clip length: short clips fill the
+  // page; long/dense clips spread out (scroll) instead of clumping into noise.
+  // Aim for ≥ MIN_PX_PER_NOTE horizontal pixels per detected note.
   const dur0 = report.clip_duration_s || 1;
+  const nNotes = (report.notes || []).filter(n => n.midi != null).length;
+  const MIN_PX_PER_NOTE = 26;
+  const noteDrivenPxSec = nNotes > 1 ? (nNotes * MIN_PX_PER_NOTE) / dur0 : 14;
+  const pxPerSec = Math.min(80, Math.max(18, noteDrivenPxSec));  // clamp 18–80
   const containerW = (scroll && scroll.clientWidth) || canvas.offsetWidth || 800;
-  const W = Math.max(containerW, Math.round(dur0 * 14));
+  const W = Math.max(containerW, Math.round(dur0 * pxPerSec));
   canvas.style.width = W + 'px';
   const H = 140;
   canvas.width  = W * dpr;
@@ -1085,6 +1286,18 @@ function renderPianoRoll(report) {
   // note blocks (true onset/offset + MIDI pitch). Falls back to the phrase-based
   // f0 rendering below when no note model is loaded (report.notes absent/empty).
   const realNotes = (report.notes || []).filter(n => n.midi != null);
+  // Colour each note by the dominant technique of the PHRASE it falls in (notes
+  // themselves carry no technique; phrases do). Matches the legend.
+  const NOTE_TECH_COLORS = { vibrato:'#6c8cff', breathy:'#2bd1c4', falsetto:'#ff6c8c',
+                             belt:'#ffaa33', straight:'#4cda7c' };
+  function noteColor(n) {
+    const ph = phrases.find(p => n.onset_s >= p.start_s - 0.05 && n.onset_s <= p.end_s + 0.05);
+    const tech = (ph && ph.technique) || {};
+    const dom = Object.entries(tech).sort((a, b) => b[1] - a[1])[0];
+    // Only colour by technique when it's confidently the dominant one; else neutral.
+    if (dom && dom[1] > 0.4) return NOTE_TECH_COLORS[dom[0]] || '#6c8cff';
+    return '#4cda7c';  // straight / none
+  }
   if (dur && realNotes.length) {
     const midis = realNotes.map(n => n.midi);
     const mLo = Math.min(...midis) - 2, mHi = Math.max(...midis) + 2;
@@ -1104,7 +1317,8 @@ function renderPianoRoll(report) {
       const x1 = Math.round((n.onset_s / dur) * W);
       const x2 = Math.max(x1 + 3, Math.round((n.offset_s / dur) * W));
       const y  = midiToY(n.midi);
-      ctx.fillStyle = '#6c8cffcc';
+      const col = noteColor(n);
+      ctx.fillStyle = col + 'cc';      // technique-tinted block
       ctx.beginPath();
       ctx.roundRect(x1, y - 5, x2 - x1, 10, Math.min(4, (x2 - x1) / 2));
       ctx.fill();
@@ -1115,7 +1329,7 @@ function renderPianoRoll(report) {
         ctx.fillStyle = 'rgba(255,255,255,0.95)';
         ctx.fillText(lbl, x1 + (x2 - x1 - lblW) / 2, y + 3.5);
       } else {
-        ctx.fillStyle = '#6c8cff';
+        ctx.fillStyle = col;
         ctx.fillText(lbl, x1 + (x2 - x1 - lblW) / 2, y - 8);
       }
     });
@@ -1160,7 +1374,7 @@ function renderPianoRoll(report) {
   }
 
   // Note blocks
-  const TECH_COLORS = { vibrato:'#6c8cff', breathy:'#88aaff', falsetto:'#ff6c8c', belt:'#ffaa33' };
+  const TECH_COLORS = { vibrato:'#6c8cff', breathy:'#2bd1c4', falsetto:'#ff6c8c', belt:'#ffaa33', straight:'#4cda7c' };
   voiced.forEach(p => {
     const x1 = Math.round((p.start_s / dur) * W);
     const x2 = Math.max(x1 + 3, Math.round((p.end_s / dur) * W));
@@ -1217,7 +1431,7 @@ function renderPianoRoll(report) {
 // ── Technique chips ───────────────────────────────────────────────────
 const TECH_META = {
   vibrato:  { color: '#6c8cff', label: 'Vibrato',  threshold: 0.40 },
-  breathy:  { color: '#88aaff', label: 'Breathy',  threshold: 0.35 },
+  breathy:  { color: '#2bd1c4', label: 'Breathy',  threshold: 0.35 },
   falsetto: { color: '#ff6c8c', label: 'Falsetto', threshold: 0.30 },
   belt:     { color: '#ffaa33', label: 'Belt',     threshold: 0.35 },
 };
@@ -1228,10 +1442,13 @@ function renderTechChips(tech) {
     return;
   }
   el.innerHTML = Object.entries(tech).map(([name, val]) => {
+    // Skip a class the active checkpoint doesn't actually produce (value pinned
+    // at ~0) — e.g. falsetto when the GTSinger head isn't loaded. Showing a flat
+    // "0% not detected" chip is misleading, so omit it entirely.
+    if (val == null || val < 0.02) return '';
     const meta = TECH_META[name] || { color: '#888', label: name, threshold: 0.35 };
-    const pct = val != null ? Math.round(val * 100) : 0;
+    const pct = Math.round(val * 100);
     const cls = pct >= meta.threshold * 100 ? 'detected' : pct >= 15 ? 'marginal' : 'absent';
-    const stateLabel = cls === 'detected' ? 'detected' : cls === 'marginal' ? 'marginal' : 'not detected';
     return `<div class="tech-chip ${cls}" style="border-color:${meta.color};color:${meta.color}">
       <div class="chip-dot" style="background:${meta.color}"></div>
       ${meta.label} <span style="font-weight:400;opacity:0.7">${pct}%</span>
@@ -1260,8 +1477,6 @@ function renderMeters(report, coaching) {
   const mos     = report.mos || {};
 
   const f0 = pitch.f0_mean_hz;
-  document.getElementById('m-note').textContent =
-    f0 ? hzToNote(f0).split(' ')[0] : '—';
 
   const std = pitch.f0_stability_std_hz;
   const cents_std = (std && f0)
@@ -1276,10 +1491,6 @@ function renderMeters(report, coaching) {
   const depth = vib.depth_cents_mean;
   document.getElementById('m-vib-depth').textContent =
     depth != null ? `${Math.round(depth)}¢` : '—';
-
-  const hnr = qual.hnr_mean_db;
-  document.getElementById('m-hnr').textContent =
-    hnr != null && !isNaN(hnr) ? `${hnr.toFixed(1)}` : '—';
 
   document.getElementById('m-phrases').textContent =
     report.n_phrases != null ? report.n_phrases : '—';
@@ -1311,7 +1522,7 @@ function renderObservations(obs) {
 }
 
 // ── Phrases ──────────────────────────────────────────────────────────
-function renderPhrases(phrases, observations) {
+function renderPhrases(phrases, observations, canPlay = true) {
   const panel = document.getElementById('phrases-panel');
   if (!phrases.length) { panel.style.display = 'none'; return; }
   panel.style.display = '';
@@ -1348,9 +1559,9 @@ function renderPhrases(phrases, observations) {
     <tr class="phrase-detail" id="phrase-detail-${p.i}" style="display:none">
       <td colspan="8">
         <div class="phrase-detail-inner">
-          <button class="phrase-play-btn" onclick="event.stopPropagation();playPhrase(${p.start_s},${p.end_s})">
+          ${canPlay ? `<button class="phrase-play-btn" onclick="event.stopPropagation();playPhrase(${p.start_s},${p.end_s})">
             ▶ Play Phrase ${p.i}
-          </button>
+          </button>` : ''}
           <div class="phrase-obs-list">${obsHtml}</div>
         </div>
       </td>
@@ -1359,21 +1570,23 @@ function renderPhrases(phrases, observations) {
 }
 
 let _phrasePlayTimer = null;
+// Play just one phrase through the synced transport (so the audible track and
+// all cursors follow). Seeks both tracks to startS, plays, stops at endS.
 function playPhrase(startS, endS) {
-  const el = document.getElementById('audio-el');
-  if (!el || !el.src) return;
+  const u = document.getElementById('audio-user');
+  if (!u || !u.src) return;
   if (_phrasePlayTimer) { clearInterval(_phrasePlayTimer); _phrasePlayTimer = null; }
-  el.currentTime = startS;
-  el.play();
-  // Stop at the phrase end (timeupdate fires ~4×/s; interval is a safety net).
+  if (_clipDur) document.getElementById('transport-seek').value =
+    Math.round((startS / _clipDur) * 1000);
+  u.currentTime = startS;
+  if (_hasRefAudio) document.getElementById('audio-ref').currentTime = startS;
+  transportToggle();  // starts both (or just user) from startS
   const stop = () => {
-    if (el.currentTime >= endS) {
-      el.pause();
-      el.removeEventListener('timeupdate', stop);
+    if (u.currentTime >= endS) {
+      if (!u.paused) transportToggle();  // pause both
       if (_phrasePlayTimer) { clearInterval(_phrasePlayTimer); _phrasePlayTimer = null; }
     }
   };
-  el.addEventListener('timeupdate', stop);
   _phrasePlayTimer = setInterval(stop, 50);
 }
 

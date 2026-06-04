@@ -69,6 +69,9 @@ from src.features import (
     SR, HOP_LENGTH
 )
 from src.coach import build_report, generate_critique, score_report, compare_to_baselines
+# SingMOS (external pretrained MOS model) removed — quality now comes from OUR
+# quality head (see _score_quality / VOCALCOACH_QUALITY_CHECKPOINT).
+# from src.singmos import score_mos, mos_grade
 
 # ── App init ────────────────────────────────────────────────────────────────
 
@@ -138,6 +141,37 @@ def _load_session(song_id: str) -> dict:
 def _save_session(data: dict) -> None:
     p = _session_path(data["song_id"])
     p.write_text(json.dumps(data, indent=2, default=str))
+
+
+def _audio_dir(song_id: str) -> Path:
+    """Per-song directory holding persisted take audio (user + reference WAVs)."""
+    d = _sessions_dir() / f"{_slug(song_id)}_audio"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _save_take_audio(song_id: str, take_n: int, y: np.ndarray,
+                     y_ref: Optional[np.ndarray]) -> dict:
+    """Persist a take's user (and optional reference) audio as mono WAVs at SR.
+    Returns a dict of relative filenames to embed in the take's report so the UI
+    can request them via GET /sessions/{song}/{take}/audio/{which}."""
+    d = _audio_dir(song_id)
+    out = {}
+    sf.write(str(d / f"take{take_n}_user.wav"), y, SR, format="WAV")
+    out["user"] = True
+    if y_ref is not None:
+        sf.write(str(d / f"take{take_n}_ref.wav"), y_ref, SR, format="WAV")
+        out["reference"] = True
+    return out
+
+
+def _take_audio_path(song_id: str, take_n: int, which: str) -> Optional[Path]:
+    """Resolve the WAV path for a take's 'user' or 'reference' audio, or None."""
+    if which not in ("user", "reference"):
+        return None
+    suffix = "user" if which == "user" else "ref"
+    p = _audio_dir(song_id) / f"take{take_n}_{suffix}.wav"
+    return p if p.exists() else None
 
 
 def _diff_takes(prev: dict, curr: dict) -> dict:
@@ -286,30 +320,28 @@ def _load_model():
     import argparse
     _args = argparse.Namespace(**saved_args) if isinstance(saved_args, dict) else saved_args
 
-    # hidden / n_layers may be None in probe-mode checkpoints (inherited from
-    # a resumed run). Derive them directly from the state dict instead.
-    sd = ckpt["state_dict"]
-    hidden_from_sd = int(sd["input_proj.weight"].shape[0])
-    n_layers_from_sd = max(
-        int(k.split(".")[1]) for k in sd if k.startswith("blocks.")
-    ) + 1
-
     arch = getattr(_args, "arch", "conformer")
     if arch == "tcn":
-        model = VocalCoachTCN(
-            hidden=hidden_from_sd,
-            n_blocks=n_layers_from_sd,
-            causal=getattr(_args, "causal", False),
-            deep_technique_head=getattr(_args, "deep_technique_head", False),
-        )
+        # Build from the checkpoint's stored model_kwargs (has n_attn_layers,
+        # n_heads, head flags) — the same path the +1 models use. Reconstructing
+        # from the state_dict alone dropped n_attn_layers, so the primary loaded
+        # with ZERO attention layers (1.7M params) and strict=False silently
+        # discarded all 132 attention weights. _build_aux_model validates the
+        # backbone loaded, so a future mismatch raises instead of running broken.
+        model = _build_aux_model(ckpt)
     else:
+        sd = ckpt["state_dict"]
+        hidden_from_sd = int(sd["input_proj.weight"].shape[0])
+        n_layers_from_sd = max(
+            int(k.split(".")[1]) for k in sd if k.startswith("blocks.")
+        ) + 1
         model = VocalCoachConformer(
             hidden=hidden_from_sd,
             n_layers=n_layers_from_sd,
             causal=getattr(_args, "causal", False),
             deep_technique_head=getattr(_args, "deep_technique_head", False),
         )
-    model.load_state_dict(ckpt["state_dict"], strict=False)
+        model.load_state_dict(ckpt["state_dict"], strict=False)
     model.to(_device).eval()
     _model = model
 
@@ -449,7 +481,19 @@ def _detect_notes(mel_t, pitch_post):
         end = int(later[0]) if len(later) else (
             int(pk_on[pk_on > o].min()) if _np.any(pk_on > o) else len(p_on))
         span = pitch_post[int(o):max(int(o) + 1, end)]
-        midi = float(_bin_to_midi(_np.median(span.argmax(axis=1)))) if len(span) else float("nan")
+        if len(span):
+            # Octave-collapse + confidence-weighted mean over the span (matches
+            # scripts/evalNoteHead.py:_note_pitch — note-with-pitch F1 0.51→0.53):
+            # weight each frame's pitch by its posterior peak height so uncertain
+            # transient frames (prone to octave jumps) count less than the core.
+            bins = span.argmax(axis=1)
+            frame_midi = _bin_to_midi(bins.astype(float))
+            frame_midi = frame_midi + 12.0 * _np.round(
+                (_np.median(frame_midi) - frame_midi) / 12.0)
+            conf = span[_np.arange(len(span)), bins]
+            midi = float(_np.sum(conf * frame_midi) / (conf.sum() + 1e-9))
+        else:
+            midi = float("nan")
         m = int(round(midi)) if midi == midi else None
         names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
         note = f"{names[m % 12]}{m // 12 - 1}" if m is not None else "—"
@@ -458,19 +502,27 @@ def _detect_notes(mel_t, pitch_post):
                       "midi": m, "note": note})
 
     # ── Cleanup: merge over-segmented held notes ──────────────────────────────
-    # The onset detector re-fires within a sustained note (vibrato/wobble crosses
-    # the threshold repeatedly), splitting one perceptual note into G3 G3 G3…
-    # Merge adjacent notes of the SAME MIDI separated by a small gap (<120 ms),
-    # and drop ultra-short fragments (<60 ms). Genuine pitch transitions (different
-    # MIDI) are preserved — so real note variation still shows, just not the repeats.
-    MERGE_GAP_S = 0.12
-    MIN_DUR_S = 0.06
+    # The onset detector re-fires within a sustained note — and vibrato makes the
+    # pitch wobble ACROSS semitone boundaries (A3↔A#3↔A3), so the same held note
+    # fragments into many short blocks at neighbouring MIDIs. On a long clip this
+    # produces ~2 notes/sec of visual noise. We merge adjacent notes that are
+    # close in time (<MERGE_GAP_S) AND within ±MERGE_SEMITONES, keeping the
+    # dominant (longer) note's MIDI; then drop short fragments. Genuine, separated
+    # pitch transitions still show — only the vibrato/wobble repeats collapse.
+    MERGE_GAP_S = 0.15        # max silent gap to bridge between fragments
+    MERGE_SEMITONES = 1       # treat ±1 semitone wobble as the same sustained note
+    MIN_DUR_S = 0.12          # drop notes shorter than this (was 0.06 — too lenient)
     merged = []
     for nt in notes:
-        if (merged and nt["midi"] is not None
-                and merged[-1]["midi"] == nt["midi"]
+        if (merged and nt["midi"] is not None and merged[-1]["midi"] is not None
+                and abs(merged[-1]["midi"] - nt["midi"]) <= MERGE_SEMITONES
                 and nt["onset_s"] - merged[-1]["offset_s"] <= MERGE_GAP_S):
-            merged[-1]["offset_s"] = nt["offset_s"]      # extend the held note
+            prev = merged[-1]
+            # Keep the MIDI of whichever fragment is currently longer (the wobble's
+            # centre), then extend to cover this fragment.
+            if (nt["offset_s"] - nt["onset_s"]) > (prev["offset_s"] - prev["onset_s"]):
+                prev["midi"], prev["note"] = nt["midi"], nt["note"]
+            prev["offset_s"] = nt["offset_s"]
         else:
             merged.append(dict(nt))
     cleaned = [nt for nt in merged
@@ -633,11 +685,22 @@ def _analyse(y: np.ndarray, y_ref: Optional[np.ndarray] = None,
                 if k < voiced_tech.shape[1]
             }
 
-    # DTW vs reference
+    # DTW vs reference + full analysis of the reference take.
+    # When a reference is supplied we run the SAME pipeline on it (recursively,
+    # with no reference of its own to avoid infinite recursion) so the UI can A/B
+    # toggle between the user's report and the reference's. The reference report
+    # already carries the reference f0 in its _feats_summary, which we reuse for the
+    # DTW distance — no extra forward pass beyond the recursive _analyse.
     dtw_result = None
+    reference_report = None
     if y_ref is not None:
-        ref_out = _run_model(y_ref)
-        dtw_result = compute_dtw_distance(f0_hz, ref_out["f0_hz"])
+        reference_report = _analyse(
+            y_ref, y_ref=None, return_arrays=True,
+            phrase_gap_ms=phrase_gap_ms, phrase_min_ms=phrase_min_ms)
+        ref_f0 = reference_report.get("_arrays", {}).get("f0_hz")
+        if ref_f0 is None:
+            ref_f0 = _run_model(y_ref)["f0_hz"]
+        dtw_result = compute_dtw_distance(f0_hz, ref_f0)
 
     clip_dur = len(y) / SR
     report = build_report(phrases, summary, technique_clip, dtw_result, clip_dur)
@@ -664,6 +727,16 @@ def _analyse(y: np.ndarray, y_ref: Optional[np.ndarray] = None,
     population_context = compare_to_baselines(report, baselines_path=baselines_path)
     if population_context:
         report["population_context"] = population_context
+
+    # Full report on the reference take (for the UI A/B toggle). Drop the heavy
+    # _arrays we only needed for the DTW f0 — the reference's visuals are derived
+    # from its phrase data, so it doesn't ship a posteriorgram of its own. Score it
+    # here (the endpoints only score the top-level report) so the reference carries
+    # its own coaching/overall_score in the A/B view.
+    if reference_report is not None:
+        reference_report.pop("_arrays", None)
+        reference_report["coaching"] = score_report(reference_report)
+        report["reference_report"] = reference_report
 
     if return_arrays:
         report["_arrays"] = {
@@ -739,26 +812,48 @@ async def analyse_arrays(
         f0_hz:      base64 float32, shape (T,)
         T:          int — number of time frames
     """
-    import base64
     try:
         y = _load_audio(await audio.read())
-        report = _analyse(y, return_arrays=True)
-        arrays = report.pop("_arrays", {})
+        return JSONResponse(content=_arrays_payload(y))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail=traceback.format_exc())
 
-        def enc(arr):
-            return base64.b64encode(np.ascontiguousarray(arr).tobytes()).decode()
 
-        mel = arrays["mel_db"]    # (40, T)
-        pit = arrays["pitch_post"]  # (T, 360)
-        T   = mel.shape[1]
+def _arrays_payload(y: np.ndarray) -> dict:
+    """Run the model on y and return the base64-encoded mel/posteriorgram/VAD/F0
+    arrays used by the UI spectrogram + waveform canvases."""
+    import base64
+    report = _analyse(y, return_arrays=True)
+    arrays = report.pop("_arrays", {})
 
-        return JSONResponse(content={
-            "T":          T,
-            "mel_db":     enc(mel),
-            "pitch_post": enc(pit),
-            "vad":        enc(arrays["vad"]),
-            "f0_hz":      enc(arrays["f0_hz"]),
-        })
+    def enc(arr):
+        return base64.b64encode(np.ascontiguousarray(arr).tobytes()).decode()
+
+    mel = arrays["mel_db"]      # (40, T)
+    return {
+        "T":          mel.shape[1],
+        "mel_db":     enc(mel),
+        "pitch_post": enc(arrays["pitch_post"]),
+        "vad":        enc(arrays["vad"]),
+        "f0_hz":      enc(arrays["f0_hz"]),
+    }
+
+
+@app.get("/sessions/{song_id}/{take_n}/arrays/{which}")
+async def get_take_arrays(song_id: str, take_n: int, which: str):
+    """Mel/posteriorgram/VAD/F0 arrays for a persisted take's audio.
+    which = 'user' | 'reference'. Lets the UI draw real spectrograms for the
+    reference take (and for any past take after a page reload)."""
+    p = _take_audio_path(song_id, take_n, which)
+    if p is None:
+        raise HTTPException(status_code=404, detail=f"No {which} audio for take {take_n}")
+    try:
+        y, _ = sf.read(str(p), dtype="float32")
+        if y.ndim > 1:
+            y = y.mean(axis=1)
+        return JSONResponse(content=_arrays_payload(y))
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except Exception:
@@ -843,6 +938,12 @@ async def save_take(
         take_number = len(session["takes"]) + 1
         report["take_number"] = take_number
 
+        # Persist the take audio (user + optional reference) so the UI can replay
+        # either track later (incl. the reference, which the browser uploaded once
+        # and can't otherwise re-fetch). Recorded under report['audio'] as flags;
+        # served by GET /sessions/{song}/{take}/audio/{which}.
+        report["audio"] = _save_take_audio(song_id, take_number, y, y_ref)
+
         progress_diff = _diff_takes(prev_take, report) if prev_take else {}
 
         session["takes"].append(report)
@@ -862,6 +963,16 @@ async def save_take(
         raise HTTPException(status_code=503, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())
+
+
+@app.get("/sessions/{song_id}/{take_n}/audio/{which}")
+async def get_take_audio(song_id: str, take_n: int, which: str):
+    """Serve a take's persisted WAV. which = 'user' | 'reference'."""
+    p = _take_audio_path(song_id, take_n, which)
+    if p is None:
+        raise HTTPException(status_code=404, detail=f"No {which} audio for take {take_n}")
+    return FileResponse(str(p), media_type="audio/wav",
+                        filename=f"{_slug(song_id)}_take{take_n}_{which}.wav")
 
 
 @app.delete("/sessions/{song_id}/{take_n}")
