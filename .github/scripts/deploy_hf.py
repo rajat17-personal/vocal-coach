@@ -19,11 +19,11 @@ if not HF_TOKEN or not HF_SPACE_ID:
 api = HfApi(token=HF_TOKEN)
 
 # Create the space if it doesn't exist yet
-api.create_repo(repo_id=HF_SPACE_ID, repo_type="space", space_sdk="docker", exist_ok=True)
+api.create_repo(repo_id=HF_SPACE_ID, repo_type="space", space_sdk="gradio", exist_ok=True)
 print(f"Space: https://huggingface.co/spaces/{HF_SPACE_ID}")
 
 # Prepend HF Spaces YAML front-matter to the project README so HF renders it
-# correctly as a Docker-based space.  The rest of the README is kept as-is.
+# correctly as a Gradio space.  The rest of the README is kept as-is.
 with open("README.md") as f:
     original_readme = f.read()
 
@@ -33,7 +33,7 @@ hf_readme = (
     "emoji: \U0001f3a4\n"
     "colorFrom: indigo\n"
     "colorTo: pink\n"
-    "sdk: docker\n"
+    "sdk: gradio\n"
     "pinned: false\n"
     "---\n\n"
     + original_readme
