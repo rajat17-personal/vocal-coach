@@ -66,6 +66,8 @@ phrase to play just that segment + see its coaching notes), and the overall scor
   optional (without them: single-head technique, no falsetto / no learned quality).
 - API endpoints: `POST /analyse` (full JSON), `GET /health`.
 
+Note: Hugging face space is available with the model deployed, but runs on CPU. [vocal-coach](https://huggingface.co/spaces/rajat1702/vocal-coach)
+
 ## 4. Inputs / outputs
 
 **Input:** any singing clip (WAV/MP3/FLAC), 16 kHz mono internally (auto-resampled).
