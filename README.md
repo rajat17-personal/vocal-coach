@@ -18,7 +18,7 @@ GTSinger) fused at inference so all five classes are covered.
 ```bash
 git clone <THIS-REPO-URL>
 cd VocalCoach
-# Python 3.11+
+python -m venv .venv && source .venv/bin/activate     # Python 3.11+
 pip install -r requirements.txt
 ```
 
@@ -97,6 +97,11 @@ or `-F "phrasing=ballad"` (`default` | `ballad` | `uptempo`) to set phrase group
 its full `/analyse` output [`samples/house.analysis.json`](samples/house.analysis.json)
 — overall 61/100, 3 phrases, 15 notes, dominant technique = vibrato, quality 70/100.
 
+### Sample UI Results
+
+![UI Sample Inference](/samples/sample_ui.png)
+![UI Per Phrase observations](/samples/sample_ui_perPhrase.png)
+
 ---
 
 ## 5. Reproduce evaluation
@@ -147,7 +152,13 @@ VocalCoach trains on **public datasets** (we link them; we do not redistribute):
 | Technique (falsetto) | GTSinger | https://huggingface.co/datasets/AaronZ345/GTSinger |
 | Note labels | Annotated VocalSet | (derived from VocalSet) |
 | OOD eval | Vocadito | https://zenodo.org/records/5557945 |
-| Quality | SingMOS-Pro / ccmusic / PopBuTFy | https://huggingface.co/datasets/TangRain/SingMOS, https://huggingface.co/datasets/ccmusic-database/acapella, https://github.com/MoonInTheRiver/NeuralSVB |
+| Quality | SingMOS-Pro / ccmusic / PopBuTFy | (see report) |
+
+Download the pre-extracted pitch/VAD features + eval data:
+
+```bash
+python scripts/download_data.py --output-dir data
+```
 
 **Augmentation.** All augmentation is applied **on-the-fly at training time** (the
 stored features are clean): **gain** (random −40→0 dB, for quiet/feeble recordings),
@@ -207,4 +218,6 @@ python vocalcoach/train.py \
     --output-dir vocalcoach/runs/tech_vocalset_probe
 ```
 
-Re-extracting features from raw audio additionally requires RMVPE.
+Re-extracting features from raw audio additionally requires RMVPE (not pip; see
+`requirements.txt` notes).
+>>>>>>> Stashed changes
