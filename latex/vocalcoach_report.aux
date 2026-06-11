@@ -1,0 +1,65 @@
+\relax 
+\bibstyle{apalike}
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{Kim2018_CREPE_ICASSP}
+\citation{Wei2023_RMVPE_INTERSPEECH}
+\citation{Wilkins2018_VocalSet_ISMIR}
+\citation{Zhang2024_GTSinger_NEURIPS}
+\citation{Hawthorne2018_OnsetsFrames_ISMIR}
+\citation{SingMOS2024}
+\@LN@col{1}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Goal and Motivation}{1}{section.1}\protected@file@percent }
+\newlabel{sec:goal}{{1}{1}{Goal and Motivation}{section.1}{}}
+\@LN@col{2}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Related Work}{1}{section.2}\protected@file@percent }
+\newlabel{sec:related}{{2}{1}{Related Work}{section.2}{}}
+\citation{Park2019_SpecAugment_INTERSPEECH}
+\@LN@col{1}
+\@writefile{toc}{\contentsline {section}{\numberline {3}System Overview}{2}{section.3}\protected@file@percent }
+\newlabel{sec:overview}{{3}{2}{System Overview}{section.3}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces The five heads and their output granularity. Technique is per-frame in the model but aggregated over voiced frames for display; quality is clip-level by construction (time-pooled).}}{2}{table.caption.1}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{tab:heads}{{1}{2}{The five heads and their output granularity. Technique is per-frame in the model but aggregated over voiced frames for display; quality is clip-level by construction (time-pooled)}{table.caption.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Demonstration}{2}{subsection.3.1}\protected@file@percent }
+\newlabel{sec:demo}{{3.1}{2}{Demonstration}{subsection.3.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces VocalCoachTCN: one shared backbone feeds four per-frame heads (pitch, VAD, technique, note) and one clip-level quality head that mean-pools the frame features over time.}}{2}{figure.caption.2}\protected@file@percent }
+\newlabel{fig:arch}{{1}{2}{VocalCoachTCN: one shared backbone feeds four per-frame heads (pitch, VAD, technique, note) and one clip-level quality head that mean-pools the frame features over time}{figure.caption.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces The analysis view on a real clip: overall score, waveform/voice activity, log-mel spectrogram, and pitch posteriorgram (Qualitative demonstration only).}}{2}{figure.caption.3}\protected@file@percent }
+\newlabel{fig:ui-main}{{2}{2}{The analysis view on a real clip: overall score, waveform/voice activity, log-mel spectrogram, and pitch posteriorgram (Qualitative demonstration only)}{figure.caption.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Per-phrase coaching breakdown: each phrase lists its note, RMS arc, and a technique-specific observation with an actionable tip, with per-phrase audio playback (Qualitative demonstration only).}}{2}{figure.caption.4}\protected@file@percent }
+\newlabel{fig:ui-phrases}{{3}{2}{Per-phrase coaching breakdown: each phrase lists its note, RMS arc, and a technique-specific observation with an actionable tip, with per-phrase audio playback (Qualitative demonstration only)}{figure.caption.4}{}}
+\@LN@col{1}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Data}{3}{section.4}\protected@file@percent }
+\newlabel{sec:data}{{4}{3}{Data}{section.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Datasets, one per capability. Vocadito is held entirely out of training as the out-of-distribution (OOD) generalisation test.}}{3}{table.caption.5}\protected@file@percent }
+\newlabel{tab:data}{{2}{3}{Datasets, one per capability. Vocadito is held entirely out of training as the out-of-distribution (OOD) generalisation test}{table.caption.5}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Model}{3}{section.5}\protected@file@percent }
+\newlabel{sec:model}{{5}{3}{Model}{section.5}{}}
+\@LN@col{2}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Evaluation}{3}{section.6}\protected@file@percent }
+\newlabel{sec:eval}{{6}{3}{Evaluation}{section.6}{}}
+\@LN@col{1}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Headline results for the deployed checkpoints. OOD = Vocadito. Pitch and VAD are reported both in-distribution and OOD; the other heads have no OOD test set.}}{4}{table.caption.6}\protected@file@percent }
+\newlabel{tab:results}{{3}{4}{Headline results for the deployed checkpoints. OOD = Vocadito. Pitch and VAD are reported both in-distribution and OOD; the other heads have no OOD test set}{table.caption.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Pitch and VAD, in-distribution versus OOD (Vocadito). Pitch accuracy holds up OOD; gain and spectral-tilt augmentation closed most of the voicing gap.}}{4}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:pitchvad}{{4}{4}{Pitch and VAD, in-distribution versus OOD (Vocadito). Pitch accuracy holds up OOD; gain and spectral-tilt augmentation closed most of the voicing gap}{figure.caption.7}{}}
+\@LN@col{2}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces System specifications.}}{4}{table.caption.8}\protected@file@percent }
+\newlabel{tab:specs}{{4}{4}{System specifications}{table.caption.8}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {7}System Specifications}{4}{section.7}\protected@file@percent }
+\newlabel{sec:specs}{{7}{4}{System Specifications}{section.7}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {8}Limitations and Future Work}{4}{section.8}\protected@file@percent }
+\newlabel{sec:future}{{8}{4}{Limitations and Future Work}{section.8}{}}
+\bibdata{vocalcoach}
+\bibcite{Hawthorne2018_OnsetsFrames_ISMIR}{{1}{2018}{{Hawthorne et~al.}}{{}}}
+\bibcite{Kim2018_CREPE_ICASSP}{{2}{2018}{{Kim et~al.}}{{}}}
+\bibcite{Park2019_SpecAugment_INTERSPEECH}{{3}{2019}{{Park et~al.}}{{}}}
+\bibcite{SingMOS2024}{{4}{2024}{{SingMOS contributors}}{{}}}
+\bibcite{Wei2023_RMVPE_INTERSPEECH}{{5}{2023}{{Wei et~al.}}{{}}}
+\bibcite{Wilkins2018_VocalSet_ISMIR}{{6}{2018}{{Wilkins et~al.}}{{}}}
+\bibcite{Zhang2024_GTSinger_NEURIPS}{{7}{2024}{{Zhang et~al.}}{{}}}
+\@LN@col{1}
+\@LN@col{2}
+\gdef \@abspage@last{5}

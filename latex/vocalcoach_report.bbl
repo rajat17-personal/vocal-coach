@@ -1,0 +1,48 @@
+\begin{thebibliography}{}
+
+\bibitem[Hawthorne et~al., 2018]{Hawthorne2018_OnsetsFrames_ISMIR}
+Hawthorne, C., Elsen, E., Song, J., Roberts, A., Simon, I., Raffel, C., Engel,
+  J., Oore, S., and Eck, D. (2018).
+\newblock Onsets and frames: Dual-objective piano transcription.
+\newblock In {\em Proc.\ Int.\ Society for Music Information Retrieval Conf.\
+  (ISMIR)}.
+
+\bibitem[Kim et~al., 2018]{Kim2018_CREPE_ICASSP}
+Kim, J.~W., Salamon, J., Li, P., and Bello, J.~P. (2018).
+\newblock {CREPE}: A convolutional representation for pitch estimation.
+\newblock In {\em Proc.\ IEEE Int.\ Conf.\ on Acoustics, Speech and Signal
+  Processing (ICASSP)}, pages 161--165.
+
+\bibitem[Park et~al., 2019]{Park2019_SpecAugment_INTERSPEECH}
+Park, D.~S., Chan, W., Zhang, Y., Chiu, C.-C., Zoph, B., Cubuk, E.~D., and Le,
+  Q.~V. (2019).
+\newblock {SpecAugment}: A simple data augmentation method for automatic speech
+  recognition.
+\newblock In {\em Proc.\ INTERSPEECH}.
+
+\bibitem[{SingMOS contributors}, 2024]{SingMOS2024}
+{SingMOS contributors} (2024).
+\newblock {SingMOS}: A mean opinion score dataset and predictor for singing
+  voice.
+\newblock Singing-voice quality assessment dataset.
+
+\bibitem[Wei et~al., 2023]{Wei2023_RMVPE_INTERSPEECH}
+Wei, H., Cao, X., Dan, T., and Chen, Y. (2023).
+\newblock {RMVPE}: A robust model for vocal pitch estimation in polyphonic
+  music.
+\newblock In {\em Proc.\ INTERSPEECH}.
+
+\bibitem[Wilkins et~al., 2018]{Wilkins2018_VocalSet_ISMIR}
+Wilkins, J., Seetharaman, P., Wahl, A., and Pardo, B. (2018).
+\newblock {VocalSet}: A singing voice dataset.
+\newblock In {\em Proc.\ Int.\ Society for Music Information Retrieval Conf.\
+  (ISMIR)}, pages 468--474.
+
+\bibitem[Zhang et~al., 2024]{Zhang2024_GTSinger_NEURIPS}
+Zhang, Y. et~al. (2024).
+\newblock {GTSinger}: A global multi-technique singing corpus with realistic
+  music scores.
+\newblock In {\em Advances in Neural Information Processing Systems (NeurIPS),
+  Datasets and Benchmarks}.
+
+\end{thebibliography}

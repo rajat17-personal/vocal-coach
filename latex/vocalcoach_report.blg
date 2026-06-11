@@ -1,0 +1,46 @@
+This is BibTeX, Version 0.99d (TeX Live 2023/Debian)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: vocalcoach_report.aux
+The style file: apalike.bst
+Database file #1: vocalcoach.bib
+You've used 7 entries,
+            1935 wiz_defined-function locations,
+            510 strings with 5294 characters,
+and the built_in function-call counts, 3201 in all, are:
+= -- 297
+> -- 175
+< -- 4
++ -- 62
+- -- 62
+* -- 251
+:= -- 550
+add.period$ -- 21
+call.type$ -- 7
+change.case$ -- 65
+chr.to.int$ -- 7
+cite$ -- 7
+duplicate$ -- 136
+empty$ -- 216
+format.name$ -- 70
+if$ -- 640
+int.to.chr$ -- 1
+int.to.str$ -- 0
+missing$ -- 6
+newline$ -- 38
+num.names$ -- 21
+pop$ -- 89
+preamble$ -- 1
+purify$ -- 65
+quote$ -- 0
+skip$ -- 86
+stack$ -- 0
+substring$ -- 148
+swap$ -- 24
+text.length$ -- 2
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 42
+warning$ -- 0
+while$ -- 20
+width$ -- 0
+write$ -- 88
